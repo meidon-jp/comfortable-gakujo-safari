@@ -1,36 +1,106 @@
-# Comfortable-Gakujo
-![version](https://img.shields.io/badge/version-1.11.3-green)
+# Comfortable Gakujo for Safari Userscripts
+![version](https://img.shields.io/badge/version-1.11.4-green)
+
+静岡大学の学務情報システム（学情）を使いやすくするユーザースクリプトです。
+[woody-1227 / Comfortable-Gakujo](https://github.com/woody-1227/Comfortable-Gakujo) の v1.11.3 を基に、macOS・iOS・iPadOSのSafariで [Userscripts](https://github.com/quoid/userscripts) を使って登録・実行できるよう整備しています。独立したSafari拡張アプリのビルドは不要です。
+
+配布・更新先は [meidon-jp/comfortable-gakujo-safari](https://github.com/meidon-jp/comfortable-gakujo-safari) です。実機での動作保証ではなく、下記「互換性と検証状況」の条件で利用してください。
+
+## ライセンスと移植元
+
+[MIT License](LICENSE)。元作者の `Copyright (c) 2026 woody-1227` と著作権・許諾表示を保持しています。単体で配布する `.user.js` にも同じライセンス全文を含めています。元スクリプトの作者表記は `woody_1227` です。
 
 ## 注意事項
-- 非公式の拡張機能です。
+- 非公式のユーザースクリプトです。
 - 生成AIによって生成されたソースコードが利用されています。
-- この拡張機能は機能5, 6, 8の実現のため、Cookieの機能を使用します。なお、機能を利用しない限り、Cookieは使用されません。
-- この拡張機能は機能11の実現のため、ローカルストレージの機能を使用します。なお、機能を利用しない限り、ローカルストレージは使用されません。
+- 機能5・6・8はCookie、機能11はlocalStorage、機能10はsessionStorageを使用します。保存内容と制約は下記を参照してください。
+- 機能7はSSOの属性送信同意ボタンを自動で押します。既定の送信属性での同意を望まない場合は、`idp.shizuoka.ac.jp` へのアクセスを許可しないでください。
 - 学情の画面構成などが変更されることで正常に動作しなくなるおそれがあります。
 - 無責任、無保証です。利用によって、いかなる問題が発生しても責任を負いません。
 
 ## インストール
-### 1. ブラウザにTampermonkeyをインストールする
-> [!WARNING]
-> Chrome系ブラウザでTampermonkey拡張機能（バージョン5.3+）を使用する場合、「ユーザースクリプトを許可」トグル（Chrome 138+では拡張機能の設定から利用可能）または開発者モードのいずれかを有効にする必要があります。（ https://www.tampermonkey.net/faq.php#Q209 ）  
-> Microsoft Edgeにおいては、「拡張機能」より、「開発者モード」を有効化し、Tampermonkeyの「詳細」から「ユーザースクリプトを許可する」を有効化する必要があります。
-- chrome ウェブストア  
-https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ja  
-- Firefox Browser ADD-ONS  
-https://addons.mozilla.org/ja/firefox/addon/tampermonkey/
-- Microsoft Edge Addons
-https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd?hl=ja-JP
 
-### 2. ブラウザで次のリンクにアクセスし、画面の指示に従って操作する
-https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/Comfortable_Gakujo.user.js
+### 1. Userscriptsを導入する
 
-### 3. アップデートについて
-Tampermonkeyの自動アップデートを利用できます。  
-ただし、自動アップデートを信頼しすぎないでください。  
-定期的な手動アップデートをおすすめします。  
-  
-手動でアップデートを行うには、下記のリンクに再度アクセスしてください。  
-https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/Comfortable_Gakujo.user.js
+[App StoreのUserscripts](https://apps.apple.com/app/userscripts/id1463298887) をインストールして、一度アプリを開きます。スクリプトの保存先は既定のフォルダを使うか、アプリで選択してください。
+
+- **macOS**: Safariの「設定」（旧版は「環境設定」）→「機能拡張」でUserscriptsを有効にします。プロファイルを使っている場合は、学情を開くプロファイルでも有効にします。
+- **iOS・iPadOS**: 「設定」→「アプリ」→「Safari」→「機能拡張」でUserscriptsを有効にします。旧OSでは「設定」→「Safari」→「機能拡張」です。Safariのページメニュー／機能拡張メニューからも管理できます。
+
+このスクリプトのAPI上の前提は **macOS 12以降かつSafari 15.4以降、またはiOS・iPadOS 15.4以降** です。Userscripts本体はApp Storeに表示される対応OSも確認してください。元コードの `crypto.randomUUID()` は [MDNの互換性データでSafari 15.4以降に対応](https://github.com/mdn/browser-compat-data/blob/main/api/Crypto.json) とされており、それ以前向けの代替実装は追加していません。これらの最低バージョンでの実機試験は未実施です。
+
+### 2. スクリプトを登録する
+
+1. Safariで [Comfortable_Gakujo.user.jsの配布URL](https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js) を開きます。
+2. そのページでSafariの機能拡張メニューからUserscriptsのポップアップを開き、インストールの案内に従います。スクリプト名は `Comfortable Gakujo (Safari Userscripts)` です。
+3. Userscripts全体の `Enable Injection` と、このスクリプトのスイッチをONにします。元版など同じ機能のスクリプトを登録済みの場合は、重複実行を避けるためそちらをOFFにしてください。
+
+インストールの案内が出ない場合や、未公開の手元の変更を試す場合は、[src/Comfortable_Gakujo.user.js](src/Comfortable_Gakujo.user.js) をUserscriptsの保存先へコピーしてください。拡張子を `.user.js` のまま保存します。コピー・編集後はUserscriptsのポップアップを一度開いて読み込みが終わるのを待ち、対象ページを再読み込みします。配布URLにはGitHubの `main` に公開された内容が反映されます。
+
+iCloud Driveを保存先にする場合、同期が終わっていることを確認してください。対応OSではフォルダを「ダウンロード済みを保持」にすると、ファイルが端末から取り除かれるのを防げます。スクリプトの同期と、後述するCookie・ストレージの保存は別です。
+
+### 3. 対象サイトのアクセスを許可する
+
+Safariで次のサイトを開き、Userscriptsへのアクセス確認では、そのサイトについて「常に許可」を選びます。Safari設定のUserscriptsのWebサイト権限からも変更できます。
+
+| サイト | 用途 |
+| --- | --- |
+| `https://gakujo.shizuoka.ac.jp/` | 学情の各機能。必須です。 |
+| `https://idp.shizuoka.ac.jp/` | SSOの自動同意・ログイン再試行（機能7）。この機能を使う場合に許可します。 |
+
+登録・更新時に配布元のアクセス許可を求められた場合は、表示中の `raw.githubusercontent.com` に許可してください。スクリプトの実行対象は上記2サイトだけで、GitHubや全Webサイトへの実行対象の追加は不要です。
+
+権限設定後、学情を再読み込みします。Userscriptsのポップアップでスクリプトが有効になっていることを確認してください。ホーム画面にはバージョン表示が追加されます。
+
+手順の根拠: [Userscripts公式README（導入・登録・保存先・更新）](https://github.com/quoid/userscripts#usage)、[MacでSafari機能拡張を使う](https://support.apple.com/ja-jp/102343)、[iPhoneのSafari機能拡張](https://support.apple.com/ja-jp/guide/iphone/iphab0432bf6/ios)。画面の表記はOS・Userscriptsのバージョンで異なります。
+
+## 更新方法
+
+`@updateURL`・`@downloadURL` とホーム画面の更新リンクは、すべてこのリポジトリの `main/src/Comfortable_Gakujo.user.js` を参照します。
+
+- Userscriptsのポップアップの `Available Updates` で更新を確認・適用します。macOSのエディタでは対象スクリプトの `Update` ボタンも使用できます。自動確認だけに任せず、適用後のバージョンを確認してください。
+- 手動の場合は [配布URL](https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js) を再度開き、Userscriptsから既存スクリプトを更新します。同じ版を入れ直す場合など、更新できないときは保存先の既存ファイルを新しい `.user.js` で置き換えてください。別名のコピーを残して同時に有効にしないでください。
+- 更新後はポップアップを一度開いて読み込みを待ち、学情を再読み込みします。別々の保存先を使う端末は、それぞれで更新が必要です。
+
+元リポジトリの更新が自動で取り込まれる構成ではありません。Cookie・ストレージのキーは元版から変更していません。
+
+## 互換性と検証状況
+
+2026-10-21にソースとUserscripts公式仕様を確認しました。**macOSのSafari＋Userscriptsでは、ユーザーから動作確認の報告がありました。iOS・iPadOSの実機、およびログイン後の各機能の網羅的な確認は未実施です。** 自動テストはNode.jsのVM・DOM代替オブジェクトによる検証で、Safariや実サイトの動作を保証するものではありません。
+
+| 確認項目 | 維持した方式・確認結果 | 実機で確認が必要な点 |
+| --- | --- | --- |
+| 実行タイミング | `@run-at document-start` を維持。`load`後にDOM安定・必要要素を待機。遅い注入では `readyState === "complete"` から開始。読み込み前・途中・完了後から一度だけ初期化するテストが通過。 | Userscriptsの注入時期、実サイトでの描画・画面遷移。 |
+| ページ側のjQuery | `@inject-into page`・`@grant none` を維持。既存の `window.jQuery.fn.submit` とネイティブの `submit` を一時的に捕捉して添付を取得。捕捉と復元を代替オブジェクトで確認。外部jQueryは追加しない。 | 実サイトのjQuery・送信関数との連携、CSPによる注入制限。 |
+| フォーム送信 | 成績・時間割取得は既存のFormData／URLSearchParamsと同一オリジンの認証情報を使用。CSRFフィールドの引き継ぎをテスト。添付プレビューのGETだけ本文をクエリへ修正し、POSTのFormDataは維持。 | 実際の認証・トークン・ダウンロード処理、単位情報への遷移、提出取消後の復帰、SSO自動同意。 |
+| Cookie・ストレージ | Cookieの日本語データの往復と削除、初期化時のsessionStorageの扱いをテスト。保存方式・キーは維持。 | Safariの保存制限・データ削除・プライベートブラウズ、画像の保存と復元。 |
+| 添付プレビュー | PDF・テキストはBlob URLをiframeへ、画像はimgへ表示。GET／POST、HTTPエラー表示、MIME選択、画像用URLの解放をテスト。 | iPhone・iPadでのPDFのページ送り・スクロール、文字コード、画像形式、ログイン切れ時の応答。 |
+
+添付のGETフォームに本文を指定するとFetchの仕様上エラーになるため、クエリで送るようにしています。また、HTTP 4xx・5xxをファイル扱いしないようにしています（[Fetch Standard](https://fetch.spec.whatwg.org/#dom-request)）。この2点以外の機能処理は維持しています。
+
+### 保存内容と制約
+
+- Cookie（学情サイト内、`path=/`）: `cg_hidden_*` は非表示課題のタイトル・科目・提出期間・状態など、`cg_grade_save_enabled` は通知設定、`cg_grade` は比較用ハッシュ、`cg_grade_updated` は更新フラグです。保存期限の指定は365日ですが、Safariのポリシーやサイトデータ削除で早く消えることがあります。
+- localStorage: `cg-header-image` に切り抜いたヘッダー画像を保存します。ホーム画面で既存画像を読み取り、変更・削除操作時に書き込みます。容量制限や保存禁止では利用できません。
+- sessionStorage: `cg_return_to_task` に提出取消後の復帰先となる課題名・科目名を保存します。初期化時には旧処理用の `cg_grade_nav` を削除します。
+- これらはUserscriptsの保存フォルダではなく、Safariの学情サイトのデータです。端末間の同期・引き継ぎは実装していません。Cookieをブロックした環境、ストレージへのアクセスが拒否される環境は未対応です。
+- ファイルプレビューはSafariのPDF・画像対応とサイトのCSPに依存します。表示できない場合は元の添付リンクから開いてください。外部サイトの添付は通常のCORS制限を受けます。ログイン画面がHTTP 200で返る場合の自動判別は行いません。
+- `page` への注入がCSPで拒否される場合は未対応です。`content` に変えるとページ側のjQueryや送信処理にアクセスできなくなるため、このスクリプトでは切り替えを解決策として案内しません（[Userscriptsの実行コンテキスト・CSPの説明](https://github.com/quoid/userscripts#metadata)）。
+
+### ローカル検証
+
+Node.jsは [.mise.toml](.mise.toml) に固定しています。外部npmパッケージは不要です。リポジトリ直下で実行します。
+
+```sh
+mise install
+mise exec -- node --check src/Comfortable_Gakujo.user.js
+mise exec -- node --test tests/*.test.cjs
+git diff --check
+```
+
+検証時はNode.js v22.23.2で、既存17件と追加12件の計29件が通過し、構文チェックも通過しました。追加テストでは修正前にGETプレビュー1件・HTTPエラー2件の失敗を再現しています。
+
+実機確認時は、各OSで登録・再読み込み・更新を行い、ホームのカウントダウンと通知、課題の非表示と復元、ヘッダー画像の保存・再読込・削除、成績フィルター、時間割順の選択、SSO、単位情報への遷移、添付のPDF・テキスト・画像表示を確認してください。提出取消の復帰は、実際に取消操作が必要な場合に確認してください。
 
 ## 機能
 - 1~4, 10の機能は「課題・アンケートリスト」のページにて自動実行されます。
@@ -144,6 +214,14 @@ https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/Comfortable_Gakujo
 履修時間割と年度・学期が一致する場合に適用します。照合できない科目は「曜日・時限未確認」にまとめ、時間割を確認できない場合は元の表示を保持します。
 
 ## 更新履歴
+
+### 2026/10/21 Safari Userscripts版 ver1.11.4
+
+- 登録・更新先をこのリポジトリに変更し、Userscriptsでの導入手順と未確認事項を記載。
+- 添付プレビューのGETフォーム送信とHTTPエラー処理を修正。
+- 元作者・MITライセンスを保持し、単体の `.user.js` にもライセンス全文を追加。
+- 以下は移植元から引き継いだ更新履歴です。
+
 ### 2025/07/04 ver1.1.0  
 - 「1. 自動並び替え機能」、「2. 締め切り日時 強調表示」、「3. カウントダウン表示」を追加
 ### 2025/07/06 ver1.1.1

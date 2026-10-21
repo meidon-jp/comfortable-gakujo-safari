@@ -1,24 +1,50 @@
 // ==UserScript==
-// @name         Comfortable Gakujo
-// @namespace    http://tampermonkey.net/
-// @version      1.11.3
-// @description  READMEを必ず読んでからご利用ください：https://github.com/woody-1227/Comfortable-Gakujo/blob/main/README.md
+// @name         Comfortable Gakujo (Safari Userscripts)
+// @namespace    https://github.com/meidon-jp/comfortable-gakujo-safari
+// @version      1.11.4
+// @description  READMEを必ず読んでからご利用ください：https://github.com/meidon-jp/comfortable-gakujo-safari/blob/main/README.md
 // @author       woody_1227
+// @license      MIT
 // @match        https://gakujo.shizuoka.ac.jp/*
 // @match        https://idp.shizuoka.ac.jp/*
 // @run-at       document-start
 // @inject-into  page
 // @grant        none
-// @updateURL    https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/Comfortable_Gakujo.user.js
-// @downloadURL  https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/Comfortable_Gakujo.user.js
-// @icon         https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/icon.png
+// @updateURL    https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js
+// @downloadURL  https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js
+// @icon         https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/icon.png
 // ==/UserScript==
+
+/*
+ * 移植元: https://github.com/woody-1227/Comfortable-Gakujo
+ * MIT License
+ *
+ * Copyright (c) 2026 woody-1227
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 (function () {
     'use strict';
 
-    const version = "1.11.3";
-    const updateURL = "https://github.com/woody-1227/Comfortable-Gakujo/raw/main/src/Comfortable_Gakujo.user.js";
+    const version = "1.11.4";
+    const updateURL = "https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js";
 
     function waitForDomStability({
         timeout = 10000,
@@ -691,6 +717,23 @@
                 console.warn("[CG] 授業参考情報の時間割順ソート失敗", error);
             }
         })();
+    }
+
+    async function fetchPreviewBlob(href, form = null) {
+        const url = new URL(href, location.href);
+        const method = (form?.method || "GET").toUpperCase();
+        const options = { method, credentials: "same-origin" };
+        if (form) {
+            const data = new FormData(form);
+            if (method === "GET") {
+                new URLSearchParams(data).forEach((value, key) => url.searchParams.append(key, value));
+            } else {
+                options.body = data;
+            }
+        }
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error(`ファイル取得に失敗しました: HTTP ${response.status}`);
+        return response.blob();
     }
 
     function startComfortableGakujo() {
@@ -1814,12 +1857,7 @@
 
                         if (submittedForm) {
                             try {
-                                const formData = new FormData(submittedForm);
-                                const response = await fetch(submittedForm.action, {
-                                    method: submittedForm.method || "POST",
-                                    body: formData
-                                });
-                                const blob = await response.blob();
+                                const blob = await fetchPreviewBlob(submittedForm.action, submittedForm);
                                 showPreview(blob);
                             } catch (e) {
                                 const doc2 = iframe.contentDocument || iframe.contentWindow.document;
@@ -1840,8 +1878,7 @@
                 const doc = iframe.contentDocument || iframe.contentWindow.document;
                 if (doc) doc.body.innerHTML = "<div style='font-family: sans-serif; padding: 20px;'>読み込み中...</div>";
 
-                fetch(link.href)
-                    .then(res => res.blob())
+                fetchPreviewBlob(link.href)
                     .then(blob => {
                         showPreview(blob);
                     })
