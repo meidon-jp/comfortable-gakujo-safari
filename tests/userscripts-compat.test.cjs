@@ -12,18 +12,17 @@ for (const readyState of ['loading', 'interactive', 'complete']) {
         const storage = new Map([['cg_grade_nav', 'old'], ['cg_return_to_task', 'keep']]);
         let starts = 0;
         const context = vm.createContext({
-            document: { readyState, title: 'その他' },
-            window: { addEventListener: (name, callback) => listeners.set(name, callback) },
+            document: { readyState, title: 'その他', addEventListener: (name, callback) => listeners.set(name, callback) },
+            window: { addEventListener: () => assert.fail('must not wait for window.load') },
             sessionStorage: { removeItem: key => storage.delete(key) },
             setTimeout: callback => timers.push(callback),
             console: { log() {}, warn: assert.fail },
         });
-        vm.runInContext(source.slice(source.indexOf('    function waitForDomStability('),
+        vm.runInContext(source.slice(source.indexOf('    function waitForSelector('),
             source.indexOf('    const setCookie =')), context);
-        context.waitForDomStability = async () => {};
         context.startComfortableGakujo = () => starts++;
         assert.equal(starts, 0);
-        const initialize = readyState === 'complete' ? timers[0] : listeners.get('load');
+        const initialize = readyState === 'loading' ? listeners.get('DOMContentLoaded') : timers[0];
         await initialize();
         await initialize();
         assert.equal(starts, 1);
@@ -121,7 +120,7 @@ function preview({ javascript = true, jquery = true, method = 'POST', extension 
         vm.runInContext(source.slice(helperStart, source.indexOf('    function startComfortableGakujo()')), context);
     }
     vm.runInContext(source.slice(source.indexOf('        const previewMimeTypes ='),
-        source.indexOf('        document.addEventListener("click", event =>')), context);
+        source.indexOf('        document.addEventListener("click", event =>', source.indexOf('        const previewMimeTypes ='))), context);
     return { elements, requests, blobs, revoked, data, async run() {
         if (javascript) elements.find(node => node.tagName === 'button').listeners.click();
         for (const { callback } of timers.sort((a, b) => a.delay - b.delay)) await callback();

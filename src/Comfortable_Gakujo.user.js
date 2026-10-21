@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Comfortable Gakujo (Safari Userscripts)
 // @namespace    https://github.com/meidon-jp/comfortable-gakujo-safari
-// @version      1.11.4
+// @version      1.12.0
 // @description  READMEを必ず読んでからご利用ください：https://github.com/meidon-jp/comfortable-gakujo-safari/blob/main/README.md
 // @author       woody_1227
 // @license      MIT
@@ -43,61 +43,103 @@
 (function () {
     'use strict';
 
-    const version = "1.11.4";
+    const version = "1.12.0";
     const updateURL = "https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js";
 
-    function waitForDomStability({
-        timeout = 10000,
-        stableTime = 500
-    } = {}) {
-        return new Promise(resolve => {
-            let lastMutation = Date.now();
-
+    function waitForSelector(selector, timeout = 10000) {
+        const existing = document.querySelector(selector);
+        if (existing) return Promise.resolve(existing);
+        return new Promise((resolve, reject) => {
             const observer = new MutationObserver(() => {
-                lastMutation = Date.now();
+                const el = document.querySelector(selector);
+                if (!el) return;
+                observer.disconnect();
+                clearTimeout(timer);
+                resolve(el);
             });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-
-            const start = Date.now();
-
-            const check = () => {
-                const now = Date.now();
-
-                if (now - lastMutation >= stableTime) {
-                    observer.disconnect();
-                    resolve();
-                } else if (now - start > timeout) {
-                    observer.disconnect();
-                    console.debug("[CG] DOM keeps updating; continue initialization");
-                    resolve();
-                } else {
-                    setTimeout(check, 50);
-                }
-            };
-
-            check();
+            const timer = setTimeout(() => {
+                observer.disconnect();
+                reject(new Error(`Timeout: ${selector}`));
+            }, timeout);
+            observer.observe(document.documentElement, { childList: true, subtree: true });
         });
     }
 
-    function waitForSelector(selector, timeout = 10000) {
-        return new Promise((resolve, reject) => {
-            const start = Date.now();
-
-            const timer = setInterval(() => {
-                const el = document.querySelector(selector);
-                if (el) {
-                    clearInterval(timer);
-                    resolve(el);
-                } else if (Date.now() - start > timeout) {
-                    clearInterval(timer);
-                    reject(new Error(`Timeout: ${selector}`));
-                }
-            }, 50);
-        });
+    function installEarlyAppearance() {
+        // Keep SSO, login screens and embedded university pages unchanged.
+        if (window.self !== window.top || location.hostname !== "gakujo.shizuoka.ac.jp") return;
+        const apply = () => {
+            if (!document.documentElement) return false;
+            if (!document.getElementById("cg-early-appearance")) {
+                const style = document.createElement("style");
+                style.id = "cg-early-appearance";
+                style.textContent = `
+                    .cg-page-appearance .c-wrapper { isolation: isolate; background: transparent; }
+                    .cg-page-appearance .c-header {
+                        background-color: rgba(255, 255, 255, .58);
+                        border-bottom: 1px solid #ffffff80; box-shadow: 0 2px 18px #18253b0d;
+                        -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+                    }
+                    #cg-page-background {
+                        position: fixed; inset: 0; z-index: -1; pointer-events: none;
+                        background-color: #eef1f4; background-position: center; background-size: cover; background-repeat: no-repeat;
+                    }
+                    #cg-page-background[data-cg-deadline-urgency="warning"] {
+                        background-image: var(--cg-header-warning-image, repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 165, 0, .14) 32px 64px),
+                            linear-gradient(110deg, #49251b, #a74819 55%, #351b1b)) !important;
+                    }
+                    #cg-page-background[data-cg-deadline-urgency="critical"] {
+                        background-image: var(--cg-header-critical-image, repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 60, 60, .2) 32px 64px),
+                            radial-gradient(ellipse at 60% 50%, #bb172c, #540b18 65%, #220910)) !important;
+                    }
+                    .cg-page-appearance .index-main-visual { min-height: 0; }
+                    .cg-page-appearance .index-main-visual-bg { display: none; }
+                    .cg-page-appearance .index-main-visual .sp_box {
+                        display: flex; flex-direction: column; height: auto; gap: 16px; padding: 24px 0;
+                    }
+                    .cg-page-appearance .index-main-visual-top { height: auto; padding-top: 0; padding-bottom: 0; }
+                    .cg-page-appearance .index-main-visual-notice {
+                        position: relative; inset: auto; transform: none; width: 100%; margin: 0 auto; justify-content: center;
+                    }
+                    .cg-page-appearance .index-main-visual-notice-other { width: min(100%, 720px); }
+                    .cg-page-appearance .index-main-visual-bottom {
+                        position: static; height: auto; width: 100%; order: -1; background: transparent;
+                    }
+                    .cg-page-appearance .index-main-visual-bottom .c-contents > div {
+                        position: static; display: flex; align-items: center;
+                    }
+                    .cg-page-appearance .index-main-visual-user-picture { display: none; }
+                    .cg-page-appearance .index-main-visual-user-information {
+                        position: static; margin: 0; padding: 12px 16px; border-radius: 8px; background: #fffffff2;
+                    }
+                    @media screen and (max-width: 560px) {
+                        .cg-page-appearance .index-main-visual .sp_box { padding: 16px 0; }
+                    }
+                `;
+                try {
+                    const image = localStorage.getItem("cg-header-image");
+                    if (image) style.textContent += `
+                        #cg-page-background:not([data-cg-background-ready]) {
+                            background-image: url(${JSON.stringify(image)});
+                        }
+                    `;
+                } catch (error) { console.debug("[CG] 背景画像の先行読込を省略", error); }
+                (document.head || document.documentElement).appendChild(style);
+            }
+            const wrapper = document.querySelector(".c-wrapper");
+            if (!wrapper || !document.querySelector(".c-header")) return false;
+            document.documentElement.classList.add("cg-page-appearance");
+            if (!document.getElementById("cg-page-background")) {
+                const background = document.createElement("div");
+                background.id = "cg-page-background";
+                background.setAttribute("aria-hidden", "true");
+                wrapper.appendChild(background);
+            }
+            return true;
+        };
+        if (apply()) return;
+        const observer = new MutationObserver(() => { if (apply()) observer.disconnect(); });
+        observer.observe(document, { childList: true, subtree: true });
     }
 
     // Check existing content as well as future mutations.
@@ -115,14 +157,10 @@
         initializationStarted = true;
         try {
             sessionStorage.removeItem("cg_grade_nav");
-            console.log("[CG] window load");
-
-            await waitForDomStability();
-
-            console.log("[CG] DOM stabilized");
-
             if (document.title === "ホーム画面（学生・保護者）") {
                 await waitForSelector(".index-container");
+                await waitForSelector(".index-main-visual-user-last-login");
+                await waitForSelector(".index-main-visual-notice");
             }
 
             if (document.title === "課題・アンケートリスト") {
@@ -138,10 +176,10 @@
         }
     }
 
-    if (document.readyState === "complete") {
-        setTimeout(initializeComfortableGakujo, 0);
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeComfortableGakujo, { once: true });
     } else {
-        window.addEventListener("load", initializeComfortableGakujo, { once: true });
+        setTimeout(initializeComfortableGakujo, 0);
     }
 
     const setCookie = (name, value, days = 365) => {
@@ -382,12 +420,12 @@
         return `残り ${dayStr}${h.toString().padStart(2, '0')}時間 ${m.toString().padStart(2, '0')}分 ${seconds}秒`;
     }
 
-    function renderDeadlineCountdown(timer, remaining, precision = 0) {
+    function renderDeadlineCountdown(timer, remaining, precision = 0, warningDays = 3) {
         const expired = remaining <= 0;
         timer.textContent = expired ? "締切済み" : formatTimeLeft(remaining, precision);
         Object.assign(timer.style, {
-            color: remaining < 86400000 ? "red" : remaining < 3 * 86400000 ? "#FF8C00" : "",
-            fontWeight: remaining < 3 * 86400000 ? "bold" : "",
+            color: remaining < 86400000 ? "red" : remaining < warningDays * 86400000 ? "#FF8C00" : "",
+            fontWeight: remaining < warningDays * 86400000 ? "bold" : "",
             textDecoration: !expired && remaining < 86400000 ? "underline" : ""
         });
     }
@@ -411,10 +449,10 @@
             .reduce((nearest, deadline) => Math.min(nearest, deadline), Infinity);
     }
 
-    function updateDeadlineBackground(visual, remaining) {
+    function updateDeadlineBackground(visual, remaining, warningDays = 3) {
         if (!visual) return;
         const urgency = remaining > 0 && remaining < 86400000 ? "critical"
-            : remaining > 0 && remaining < 3 * 86400000 ? "warning" : "";
+            : remaining > 0 && remaining < warningDays * 86400000 ? "warning" : "";
         // Override only the presentation; the user's saved image stays untouched.
         if (urgency) {
             if (visual.dataset.cgDeadlineUrgency !== urgency) visual.dataset.cgDeadlineUrgency = urgency;
@@ -423,7 +461,74 @@
         }
     }
 
-    function installHomeTaskCountdown() {
+    const headerImageKeys = {
+        normal: "cg-header-image",
+        warning: "cg-header-image-warning",
+        critical: "cg-header-image-critical"
+    };
+
+    function validHeaderWarningDays(value) {
+        const days = Number(value);
+        return Number.isSafeInteger(days) && days >= 2 ? days : null;
+    }
+
+    function createHeaderBackgroundController(visual, storage) {
+        const settings = { warningDays: 3, images: { normal: "", warning: "", critical: "" } };
+        try {
+            if (storage) {
+                settings.warningDays = validHeaderWarningDays(storage.getItem("cg-header-warning-days")) ?? 3;
+                for (const [state, key] of Object.entries(headerImageKeys)) {
+                    settings.images[state] = storage.getItem(key) || "";
+                }
+            }
+        } catch (error) {
+            console.warn("[CG] 背景設定を読み込めませんでした", error);
+        }
+        const bg = visual;
+        const defaultImage = bg?.style.backgroundImage || "";
+        let remaining = Infinity;
+        const applyImages = () => {
+            if (bg) {
+                bg.style.backgroundImage = settings.images.normal ? `url(${JSON.stringify(settings.images.normal)})` : defaultImage;
+                bg.dataset.cgBackgroundReady = "1";
+                for (const state of ["warning", "critical"]) {
+                    const property = `--cg-header-${state}-image`;
+                    if (settings.images[state]) bg.style.setProperty(property, `url(${JSON.stringify(settings.images[state])})`);
+                    else bg.style.removeProperty(property);
+                }
+            }
+        };
+        const render = value => {
+            remaining = value;
+            updateDeadlineBackground(visual, remaining, settings.warningDays);
+        };
+        const requireStorage = () => {
+            if (!storage) throw new Error("このブラウザでは背景設定を保存できません．");
+        };
+        applyImages();
+        return {
+            settings, render,
+            setWarningDays(value) {
+                const days = validHeaderWarningDays(value);
+                if (days === null) throw new Error("日数は2以上の整数にしてください．");
+                requireStorage();
+                storage.setItem("cg-header-warning-days", String(days));
+                settings.warningDays = days;
+                render(remaining);
+            },
+            setImage(state, image) {
+                if (!Object.hasOwn(headerImageKeys, state)) throw new Error("背景の種類が不正です．");
+                requireStorage();
+                // Keep the displayed image intact if a storage write fails.
+                if (image) storage.setItem(headerImageKeys[state], image);
+                else storage.removeItem(headerImageKeys[state]);
+                settings.images[state] = image;
+                applyImages();
+            }
+        };
+    }
+
+    function installHomeTaskCountdown(background = null, gradeNotice = null) {
         if (document.getElementById("cg-home-task-countdown")) return;
         const notice = document.createElement("li");
         notice.id = "cg-home-task-countdown";
@@ -521,14 +626,6 @@
                 }
             }
             #cg-home-task-countdown[hidden] { display: none; }
-            .index-main-visual[data-cg-deadline-urgency="warning"] .index-main-visual-bg {
-                background-image: repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 165, 0, .14) 32px 64px),
-                    linear-gradient(110deg, #49251b, #a74819 55%, #351b1b) !important;
-            }
-            .index-main-visual[data-cg-deadline-urgency="critical"] .index-main-visual-bg {
-                background-image: repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 60, 60, .2) 32px 64px),
-                    radial-gradient(ellipse at 60% 50%, #bb172c, #540b18 65%, #220910) !important;
-            }
         `;
         document.head.appendChild(style);
         const title = document.createElement("div");
@@ -539,20 +636,17 @@
         notice.append(title, timer);
         notice.hidden = true;
 
-        const updateBackground = remaining => updateDeadlineBackground(document.querySelector(".index-main-visual"), remaining);
+        const updateBackground = remaining => background ? background.render(remaining)
+            : updateDeadlineBackground(document.getElementById("cg-page-background"), remaining);
         const renderClock = remaining => {
-            renderDeadlineCountdown(timer, remaining);
+            renderDeadlineCountdown(timer, remaining, 0, background?.settings.warningDays ?? 3);
             updateBackground(remaining);
         };
         let layoutPanel;
         let layoutItems = [];
         const sizePanel = panel => {
             const items = Array.from(panel.children).filter(item => item !== notice).slice(0, 2);
-            // Measure the site's original card widths before enabling our layout.
-            panel.classList.remove("cg-notice-with-countdown");
-            const widths = items.map(item => item.getBoundingClientRect().width);
-            if (widths[0] > 0) panel.style.setProperty("--cg-task-card-width", `${widths[0]}px`);
-            if ((widths[1] || widths[0]) > 0) panel.style.setProperty("--cg-grade-card-width", `${widths[1] || widths[0]}px`);
+            // Let CSS distribute the current cards instead of carrying over their old pixel widths.
             panel.classList.add("cg-notice-with-countdown");
             layoutPanel = panel;
             layoutItems = items;
@@ -568,6 +662,8 @@
                 updateBackground(Infinity);
                 return;
             }
+            // The portal can replace the notice markup after DOMContentLoaded.
+            if (gradeNotice && !panel.querySelector("#cg-grade-save-toggle")) panel.appendChild(gradeNotice);
             const items = Array.from(panel.children).filter(item => item !== notice).slice(0, 2);
             if (layoutPanel !== panel || items.length !== layoutItems.length || items.some((item, index) => item !== layoutItems[index])) {
                 sizePanel(panel);
@@ -719,6 +815,471 @@
         })();
     }
 
+    function styleHomeGradeFrame(frame) {
+        try {
+            const url = new URL(frame.src, location.href);
+            if (url.origin !== location.origin || !url.pathname.endsWith("/recordDashBoard")) return;
+            const doc = frame.contentDocument;
+            if (!doc?.head || doc.getElementById("cg-home-grade-glass")) return;
+            const style = doc.createElement("style");
+            style.id = "cg-home-grade-glass";
+            style.textContent = `
+                html, body, .c-wrapper, .c-container, .c-contents, .c-box-shadow, body > div, canvas,
+                .dashboard_box, .graphList_item, .c-footer-inner {
+                    background-color: transparent !important;
+                }
+            `;
+            doc.head.appendChild(style);
+        } catch (error) { console.debug("[CG] 成績パネルの背景調整を省略", error); }
+    }
+
+    function installHomeAppearance() {
+        document.documentElement.classList.add("cg-home");
+        const style = document.createElement("style");
+        style.id = "cg-home-appearance";
+        style.textContent = `
+            .cg-home .index-main-visual { overflow: visible; }
+            .cg-home .index-main-visual .sp_box {
+                display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); align-items: center;
+                width: calc(100% - 40px); max-width: 1200px; margin: 24px auto; padding: 24px 28px; gap: 28px;
+                box-sizing: border-box; border: 1px solid #ffffff9c; border-radius: 18px;
+                background: rgba(255, 255, 255, .58); box-shadow: 0 8px 32px #18253b12;
+                -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+            }
+            .cg-home .index-main-visual-top { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; margin: 0; padding: 0; }
+            .cg-home .index-main-visual-bottom { grid-column: 1; grid-row: 1; width: 100%; min-width: 0; }
+            .cg-home .index-main-visual-bottom .c-contents { width: 100%; min-width: 0; padding: 0; margin: 0; }
+            .cg-home .index-main-visual-user-information { background: transparent; padding: 0; border-radius: 0; }
+            .cg-home .index-main-visual-user-name { color: #253044; font-size: 20px; font-weight: 600; line-height: 1.5; }
+            .cg-home .index-main-visual-user-last-login { color: #536174; font-size: 12px; line-height: 1.7; }
+            .cg-home .cg-version-link { display: inline-block; margin-top: 4px; color: #536174; font-size: 11px; text-decoration: none; }
+            .cg-home .cg-version-link:hover { text-decoration: underline; }
+            .cg-home .index-main-visual-notice { width: 100%; height: auto; min-height: 0; margin: 0; padding: 0; }
+            .cg-home .index-main-visual-notice-other { width: 100%; height: auto; min-width: 0; padding: 0; margin: 0; }
+            .cg-home .index-notice-other-items.cg-notice-with-countdown {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); grid-template-rows: auto; gap: 20px;
+                padding: 0; margin: 0;
+            }
+            .cg-home .cg-notice-with-countdown > .index-notice-other-item > .index-main-visual-notice-box,
+            .cg-home .cg-notice-with-countdown > .index-notice-other-item > .cg-index-main-visual-notice-box,
+            .cg-home .cg-notice-with-countdown > #cg-home-task-countdown {
+                display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+                grid-column: auto; min-height: 72px; padding: 0 0 0 20px; margin: 0; gap: 8px;
+                background: transparent; border: 0; border-left: 1px solid #5261742e;
+                border-radius: 0; box-shadow: none; text-align: left; color: #253044;
+            }
+            .cg-home .cg-notice-with-countdown .title,
+            .cg-home #cg-home-task-countdown .cg-deadline-heading {
+                color: #536174; font: 500 12px/1.5 sans-serif; text-align: left !important; margin: 0;
+            }
+            .cg-home .cg-notice-with-countdown .content { justify-content: flex-start; }
+            .cg-home .cg-notice-with-countdown .count { font-size: 13px; line-height: 1.2; }
+            .cg-home .cg-notice-with-countdown .count .num { font-size: 30px; font-weight: 600; }
+            .cg-home #cg-home-task-countdown .cg-deadline-clock { font-size: 16px; line-height: 1.6; text-align: left; }
+            .cg-home .cg-checkbox-wrapper-8 .cg-tgl-skewed + .cg-tgl-btn { transform: none; border-radius: 6px; font-size: 11px; }
+            .cg-home .cg-checkbox-wrapper-8 .cg-tgl-skewed + .cg-tgl-btn:after,
+            .cg-home .cg-checkbox-wrapper-8 .cg-tgl-skewed + .cg-tgl-btn:before { transform: none; }
+            .cg-home .index-container .c-box-shadow {
+                background: rgba(255, 255, 255, .52); border: 1px solid #ffffff8c; border-radius: 18px;
+                box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+            }
+            .cg-home .index-container .c-box-shadow > div,
+            .cg-home .index-container .c-box-shadow section,
+            .cg-home .index-container .c-box-shadow iframe { background-color: transparent; }
+            .cg-home .index-container .index-contents-heading { color: #253044; font-size: 20px; }
+            .cg-home .index-container .scheduleList,
+            .cg-home .index-container dd.content { background-color: transparent !important; }
+            .cg-home .index-container .scheduleList_item,
+            .cg-home .index-container .schedule-accordion,
+            .cg-home .index-container .submissionList_item,
+            .cg-home .index-container .live_box { background-color: rgba(255, 255, 255, .24); border-radius: 6px; }
+            @media screen and (max-width: 900px) {
+                .cg-home .index-main-visual .sp_box { grid-template-columns: 1fr; gap: 20px; padding: 20px; }
+                .cg-home .index-main-visual-top { grid-column: 1; grid-row: 2; }
+                .cg-home .index-main-visual-bottom { grid-column: 1; grid-row: 1; }
+                .cg-home .cg-notice-with-countdown > .index-notice-other-item > .index-main-visual-notice-box,
+                .cg-home .cg-notice-with-countdown > .index-notice-other-item > .cg-index-main-visual-notice-box,
+                .cg-home .cg-notice-with-countdown > #cg-home-task-countdown { padding-left: 0; border-left: 0; }
+            }
+            @media screen and (max-width: 560px) {
+                .cg-home .index-main-visual .sp_box { width: calc(100% - 24px); margin: 16px auto; padding: 18px; border-radius: 14px; }
+                .cg-home .index-notice-other-items.cg-notice-with-countdown { grid-template-columns: 1fr; gap: 16px; }
+                .cg-home .cg-notice-with-countdown > .index-notice-other-item > .index-main-visual-notice-box,
+                .cg-home .cg-notice-with-countdown > .index-notice-other-item > .cg-index-main-visual-notice-box,
+                .cg-home .cg-notice-with-countdown > #cg-home-task-countdown { min-height: 0; }
+                .cg-home .index-container .index-contents-heading { font-size: 18px; }
+            }
+        `;
+        document.head.appendChild(style);
+        document.querySelectorAll("iframe").forEach(styleHomeGradeFrame);
+        document.addEventListener("load", event => {
+            if (event.target.tagName === "IFRAME") styleHomeGradeFrame(event.target);
+        }, true);
+    }
+
+    function headerCropRectangle(img, selection = {}, aspectRatio = 16 / 9) {
+        const width = img.naturalWidth || img.width;
+        const height = img.naturalHeight || img.height;
+        const clamp = (value, min, max, fallback) => Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+        const zoom = clamp(selection.zoom, 1, 4, 1);
+        const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 16 / 9;
+        const cropW = Math.min(width, height * ratio) / zoom;
+        const cropH = cropW / ratio;
+        return {
+            x: (width - cropW) * clamp(selection.x, 0, 1, 0.5),
+            y: (height - cropH) * clamp(selection.y, 0, 1, 0.5),
+            width: cropW,
+            height: cropH
+        };
+    }
+
+    function cropHeaderImage(img, selection = {}, aspectRatio = 16 / 9) {
+        const crop = headerCropRectangle(img, selection, aspectRatio);
+        const scale = Math.min(1, 1500 / crop.width, 1200 / crop.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(crop.width * scale));
+        canvas.height = Math.max(1, Math.round(crop.height * scale));
+        canvas.getContext("2d").drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+        return canvas;
+    }
+
+    function chooseHeaderCrop(img, save, aspectRatio = 16 / 9) {
+        return new Promise((resolve, reject) => {
+            const dialog = document.createElement("dialog");
+            dialog.id = "cg-header-crop-dialog";
+            dialog.setAttribute("aria-labelledby", "cg-header-crop-title");
+            const style = document.createElement("style");
+            style.textContent = `
+                #cg-header-crop-dialog { width: min(760px, calc(100vw - 32px)); max-height: 90vh; overflow: auto; box-sizing: border-box;
+                    padding: 20px; border: 1px solid #bbb; border-radius: 8px; color: #333; background: #fff; font: 14px/1.5 sans-serif; }
+                #cg-header-crop-dialog::backdrop { background: #0009; }
+                #cg-header-crop-dialog h2 { margin: 0 0 8px; font-size: 18px; }
+                #cg-header-crop-dialog p { margin: 8px 0; }
+                #cg-header-crop-dialog canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 40vh;
+                    margin: 12px auto; touch-action: none; cursor: move; }
+                #cg-header-crop-dialog label { display: grid; grid-template-columns: 85px 1fr 60px; align-items: center; gap: 8px; margin: 10px 0; }
+                #cg-header-crop-dialog input { width: 100%; min-width: 0; }
+                #cg-header-crop-dialog .cg-crop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+                #cg-header-crop-dialog button { padding: 8px 12px; border: 1px solid #aaa; border-radius: 4px; font: inherit; cursor: pointer; color: #333; background: #f6f6f6; }
+                #cg-header-crop-dialog .cg-crop-save { background: #176473; color: #fff; }
+                #cg-header-crop-error { color: #b00020; }
+            `;
+            const title = document.createElement("h2");
+            title.id = "cg-header-crop-title";
+            title.textContent = "画像の切り取り";
+            const note = document.createElement("p");
+            note.textContent = "白い枠の内側が背景になります．枠をドラッグするか，位置と拡大率を調整してください．";
+            const canvas = document.createElement("canvas");
+            canvas.setAttribute("aria-label", "背景画像の切り取り範囲．スライダーでも位置を調整できます．");
+            const width = img.naturalWidth || img.width;
+            const height = img.naturalHeight || img.height;
+            const scale = Math.min(1, 900 / width, 360 / height);
+            canvas.width = Math.max(1, Math.round(width * scale));
+            canvas.height = Math.max(1, Math.round(height * scale));
+            const ctx = canvas.getContext("2d");
+            const selection = { x: 0.5, y: 0.5, zoom: 1 };
+            const sliders = new Map();
+            const draw = () => {
+                const crop = headerCropRectangle(img, selection, aspectRatio);
+                const x = crop.x * canvas.width / width;
+                const y = crop.y * canvas.height / height;
+                const w = crop.width * canvas.width / width;
+                const h = crop.height * canvas.height / height;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, w, h);
+                ctx.clip();
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, w, h);
+                for (const [key, { input, output }] of sliders) {
+                    input.value = String(key === "zoom" ? selection[key] : selection[key] * 100);
+                    output.textContent = key === "zoom" ? `${selection[key].toFixed(2)}倍` : `${Math.round(selection[key] * 100)}%`;
+                    input.disabled = key === "x" ? width - crop.width < 0.001 : key === "y" ? height - crop.height < 0.001 : false;
+                }
+            };
+            dialog.append(style, title, note, canvas);
+            for (const [key, name] of [["x", "左右の位置"], ["y", "上下の位置"], ["zoom", "拡大率"]]) {
+                const label = document.createElement("label");
+                label.textContent = name;
+                const input = document.createElement("input");
+                input.id = `cg-header-crop-${key}`;
+                input.type = "range";
+                input.min = key === "zoom" ? "1" : "0";
+                input.max = key === "zoom" ? "4" : "100";
+                input.step = key === "zoom" ? "0.01" : "1";
+                const output = document.createElement("output");
+                input.addEventListener("input", () => {
+                    selection[key] = Number(input.value) / (key === "zoom" ? 1 : 100);
+                    draw();
+                });
+                sliders.set(key, { input, output });
+                label.append(input, output);
+                dialog.appendChild(label);
+            }
+            let drag;
+            canvas.addEventListener("pointerdown", event => {
+                const bounds = canvas.getBoundingClientRect();
+                const crop = headerCropRectangle(img, selection, aspectRatio);
+                const x = (event.clientX - bounds.left) * width / bounds.width;
+                const y = (event.clientY - bounds.top) * height / bounds.height;
+                if (x < crop.x || x > crop.x + crop.width || y < crop.y || y > crop.y + crop.height) return;
+                drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, crop };
+                canvas.setPointerCapture(event.pointerId);
+                event.preventDefault();
+            });
+            canvas.addEventListener("pointermove", event => {
+                if (!drag || event.pointerId !== drag.pointerId) return;
+                const bounds = canvas.getBoundingClientRect();
+                if (width > drag.crop.width) selection.x = Math.max(0, Math.min(1, (drag.crop.x + (event.clientX - drag.x) * width / bounds.width) / (width - drag.crop.width)));
+                if (height > drag.crop.height) selection.y = Math.max(0, Math.min(1, (drag.crop.y + (event.clientY - drag.y) * height / bounds.height) / (height - drag.crop.height)));
+                draw();
+            });
+            const endDrag = event => { if (event.pointerId === drag?.pointerId) drag = null; };
+            canvas.addEventListener("pointerup", endDrag);
+            canvas.addEventListener("pointercancel", endDrag);
+            const error = document.createElement("p");
+            error.id = "cg-header-crop-error";
+            error.setAttribute("role", "status");
+            const actions = document.createElement("div");
+            actions.className = "cg-crop-actions";
+            const cancel = document.createElement("button");
+            cancel.type = "button";
+            cancel.textContent = "キャンセル";
+            cancel.addEventListener("click", () => dialog.close("cancel"));
+            const confirm = document.createElement("button");
+            confirm.type = "button";
+            confirm.className = "cg-crop-save";
+            confirm.textContent = "この範囲で保存";
+            confirm.addEventListener("click", () => {
+                try {
+                    save(cropHeaderImage(img, selection, aspectRatio));
+                    dialog.close("saved");
+                } catch (e) { error.textContent = e.message; }
+            });
+            actions.append(cancel, confirm);
+            dialog.append(error, actions);
+            dialog.addEventListener("close", () => {
+                dialog.remove();
+                resolve(dialog.returnValue === "saved");
+            }, { once: true });
+            document.body.appendChild(dialog);
+            try { draw(); dialog.showModal(); }
+            catch (error) { dialog.remove(); reject(error); }
+        });
+    }
+
+    function installHeaderBackgroundSettings() {
+        const visual = document.getElementById("cg-page-background");
+        let storage;
+        try { storage = localStorage; } catch (error) { console.warn("[CG] 保存先を利用できません", error); }
+        const background = createHeaderBackgroundController(visual, storage);
+        if (!visual || document.getElementById("cg-header-uploader")) return background;
+
+        const style = document.createElement("style");
+        style.textContent = `
+            #cg-header-uploader { position: fixed; bottom: 20px; right: 20px; z-index: 20; }
+            #cg-header-uploader-btn { background: #fff; box-shadow: 0 2px 12px #0003; }
+            #cg-header-uploader button { cursor: pointer; font: inherit; }
+            #cg-header-uploader-btn { min-width: auto; }
+            #cg-header-settings {
+                position: fixed; z-index: 10000;
+                width: min(350px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto;
+                padding: 16px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 8px;
+                background: #fff; color: #333; box-shadow: 0 4px 20px #0003;
+                font-size: 14px; line-height: 1.5; text-align: left;
+            }
+            #cg-header-settings[hidden] { display: none; }
+            #cg-header-settings .cg-header-settings-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+            #cg-header-settings button { cursor: pointer; font: inherit; padding: 5px 8px; border: 1px solid #bbb; border-radius: 4px; background: #f6f6f6; color: #333; }
+            #cg-header-settings input[type="number"] { width: 70px; margin: 0 5px; padding: 4px; font: inherit; color: #333; background: #fff; border: 1px solid #bbb; }
+            #cg-header-settings .cg-header-image-row { border-top: 1px solid #ddd; margin-top: 12px; padding-top: 10px; }
+            #cg-header-settings .cg-header-image-actions { display: flex; gap: 8px; margin-top: 6px; }
+            #cg-header-settings img { display: block; width: 100%; height: 100px; object-fit: contain; margin-top: 6px; }
+            #cg-header-settings img[hidden] { display: none; }
+            #cg-header-settings .cg-header-note { font-size: 12px; color: #666; margin-top: 8px; }
+            #cg-header-settings-error { color: #b00020; margin-top: 8px; }
+        `;
+        document.head.appendChild(style);
+        const wrapper = document.createElement("div");
+        wrapper.id = "cg-header-uploader";
+        const toggle = document.createElement("button");
+        toggle.id = "cg-header-uploader-btn";
+        toggle.type = "button";
+        toggle.className = "c-btn c-btn-line";
+        toggle.title = "背景画像の設定";
+        toggle.setAttribute("aria-label", "背景画像の設定");
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.setAttribute("aria-controls", "cg-header-settings");
+        toggle.innerHTML = '<span class="c-btn-link"><i class="c-icon-edit" style="margin: 0" aria-hidden="true"></i></span>';
+
+        const panel = document.createElement("section");
+        panel.id = "cg-header-settings";
+        panel.hidden = true;
+        panel.setAttribute("aria-label", "背景画像の設定");
+        const heading = document.createElement("div");
+        heading.className = "cg-header-settings-heading";
+        const title = document.createElement("strong");
+        title.textContent = "背景画像の設定";
+        const close = document.createElement("button");
+        close.type = "button";
+        close.textContent = "閉じる";
+        const positionPanel = () => {
+            const rect = toggle.getBoundingClientRect();
+            panel.style.top = `${Math.min(rect.bottom + 8, Math.max(16, window.innerHeight - panel.offsetHeight - 16))}px`;
+            panel.style.right = `${Math.min(Math.max(16, window.innerWidth - rect.right), Math.max(16, window.innerWidth - panel.offsetWidth - 16))}px`;
+        };
+        const setOpen = open => {
+            panel.hidden = !open;
+            toggle.setAttribute("aria-expanded", String(open));
+            if (open) positionPanel();
+        };
+        toggle.addEventListener("click", () => setOpen(panel.hidden));
+        close.addEventListener("click", () => { setOpen(false); toggle.focus(); });
+        heading.append(title, close);
+        panel.appendChild(heading);
+
+        const error = document.createElement("div");
+        error.id = "cg-header-settings-error";
+        error.setAttribute("role", "status");
+        error.setAttribute("aria-live", "polite");
+        const showError = message => { error.textContent = message; };
+        const daysLabel = document.createElement("label");
+        daysLabel.textContent = "警告背景に切り替える日数";
+        const days = document.createElement("input");
+        days.id = "cg-header-warning-days";
+        days.type = "number";
+        days.min = "2";
+        days.step = "1";
+        days.inputMode = "numeric";
+        days.value = String(background.settings.warningDays);
+        daysLabel.append(days, document.createTextNode("日未満"));
+        panel.appendChild(daysLabel);
+        const note = document.createElement("p");
+        note.className = "cg-header-note";
+        note.textContent = "画像はメニューより下の背景になります．ホームでは締め切りに応じて切り替わり，他のページでは通常時の画像を使います．日数は2以上の整数です．";
+        panel.appendChild(note);
+
+        const labels = new Map();
+        for (const [state, label] of [["normal", "通常時"], ["warning", `${background.settings.warningDays}日未満`], ["critical", "1日未満"]]) {
+            const row = document.createElement("div");
+            row.className = "cg-header-image-row";
+            const caption = document.createElement("strong");
+            caption.textContent = label;
+            const thumbnail = document.createElement("img");
+            const refresh = () => {
+                const image = background.settings.images[state];
+                thumbnail.hidden = !image;
+                thumbnail.alt = `${caption.textContent}の背景`;
+                if (image) thumbnail.src = image;
+                else thumbnail.removeAttribute("src");
+            };
+            const actions = document.createElement("div");
+            actions.className = "cg-header-image-actions";
+            const choose = document.createElement("button");
+            choose.type = "button";
+            choose.textContent = "画像を選ぶ";
+            choose.setAttribute("aria-label", `${label}の画像を選ぶ`);
+            const reset = document.createElement("button");
+            reset.type = "button";
+            reset.textContent = "元に戻す";
+            reset.setAttribute("aria-label", `${label}の背景を元に戻す`);
+            const file = document.createElement("input");
+            file.type = "file";
+            file.accept = ".png,.jpg,.jpeg,.gif";
+            file.hidden = true;
+            choose.addEventListener("click", () => file.click());
+            file.addEventListener("change", () => {
+                const selected = file.files[0];
+                file.value = "";
+                if (!selected) return;
+                showError("");
+                choose.disabled = reset.disabled = true;
+                const finish = () => { choose.disabled = reset.disabled = false; };
+                const reader = new FileReader();
+                reader.onerror = () => { showError("画像を読み込めませんでした．"); finish(); };
+                reader.onload = () => {
+                    const image = new Image();
+                    image.onerror = () => { showError("この画像は読み込めません．PNGやJPEGでお試しください．"); finish(); };
+                    image.onload = async () => {
+                        try {
+                            const bounds = visual.getBoundingClientRect();
+                            const ratio = bounds.width > 0 && bounds.height > 0 ? bounds.width / bounds.height : 16 / 9;
+                            await chooseHeaderCrop(image, canvas => {
+                                let base64 = canvas.toDataURL("image/png");
+                                if (base64.length > 3 * 1024 * 1024) {
+                                    // Flatten transparency onto white before the smaller JPEG fallback.
+                                    const ctx = canvas.getContext("2d");
+                                    ctx.globalCompositeOperation = "destination-over";
+                                    ctx.fillStyle = "white";
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                    base64 = canvas.toDataURL("image/jpeg", 0.9);
+                                }
+                                if (base64.length > 3 * 1024 * 1024) throw new Error("保存する画像は3MB以下にしてください．");
+                                try { background.setImage(state, base64); }
+                                catch (error) { throw new Error("画像を保存できませんでした．画像を小さくするか，不要な背景を元に戻してください．"); }
+                                refresh();
+                            }, ratio);
+                        } catch (error) {
+                            showError("画像の切り取り画面を開けませんでした．");
+                            console.warn("[CG] 背景画像の切り取り失敗", error);
+                        } finally { finish(); }
+                    };
+                    image.src = reader.result;
+                };
+                reader.readAsDataURL(selected);
+            });
+            reset.addEventListener("click", () => {
+                try {
+                    background.setImage(state, "");
+                    showError("");
+                    refresh();
+                } catch (error) { showError("背景を元に戻せませんでした．ブラウザの保存設定を確認してください．"); }
+            });
+            actions.append(choose, reset, file);
+            row.append(caption, thumbnail, actions);
+            panel.appendChild(row);
+            labels.set(state, { caption, choose, reset, refresh });
+            refresh();
+        }
+        days.addEventListener("change", () => {
+            try {
+                background.setWarningDays(days.value);
+                const warning = labels.get("warning");
+                const label = `${background.settings.warningDays}日未満`;
+                warning.caption.textContent = label;
+                warning.choose.setAttribute("aria-label", `${label}の画像を選ぶ`);
+                warning.reset.setAttribute("aria-label", `${label}の背景を元に戻す`);
+                warning.refresh();
+                showError("");
+            } catch (error) {
+                showError(error.message);
+                days.value = String(background.settings.warningDays);
+            }
+        });
+        panel.appendChild(error);
+        wrapper.appendChild(toggle);
+        document.body.appendChild(wrapper);
+        document.body.appendChild(panel);
+        // The fixed layer follows the viewport through CSS, including behind the navigation bars.
+        window.addEventListener("resize", () => { if (!panel.hidden) positionPanel(); });
+        window.visualViewport?.addEventListener("resize", () => { if (!panel.hidden) positionPanel(); });
+        document.addEventListener("click", event => {
+            if (event.target.closest?.("#cg-header-crop-dialog")) return;
+            if (!wrapper.contains(event.target) && !panel.contains(event.target)) setOpen(false);
+        });
+        document.addEventListener("keydown", event => {
+            if (document.getElementById("cg-header-crop-dialog")?.open) return;
+            if (event.key === "Escape" && !panel.hidden) { setOpen(false); toggle.focus(); }
+        });
+        return background;
+    }
+
     async function fetchPreviewBlob(href, form = null) {
         const url = new URL(href, location.href);
         const method = (form?.method || "GET").toUpperCase();
@@ -737,8 +1298,9 @@
     }
 
     function startComfortableGakujo() {
-        console.log("[CG] startComfortableGakujo (page fully loaded)");
+        console.log("[CG] startComfortableGakujo (DOM ready)");
         installReferenceTimetableOrder();
+        const pageBackground = installHeaderBackgroundSettings();
 
         const getHiddenTasks = () => {
             let hiddenTasks = [];
@@ -801,70 +1363,14 @@
             });
         };
 
-        function cropHeaderImage(img) {
-            const TARGET_W = 1500;
-            const TARGET_H = 230;
-            const TARGET_RATIO = TARGET_W / TARGET_H;
-
-            let srcW = img.width;
-            let srcH = img.height;
-
-            let cropW, cropH;
-
-            if (srcW >= TARGET_W && srcH >= TARGET_H) {
-
-                const srcRatio = srcW / srcH;
-
-                if (srcRatio > TARGET_RATIO) {
-                    cropH = srcH;
-                    cropW = Math.round(cropH * TARGET_RATIO);
-                } else {
-                    cropW = srcW;
-                    cropH = Math.round(cropW / TARGET_RATIO);
-                }
-
-            }
-            else {
-                const srcRatio = srcW / srcH;
-
-                if (srcRatio > TARGET_RATIO) {
-                    cropH = srcH;
-                    cropW = Math.round(cropH * TARGET_RATIO);
-                } else {
-                    cropW = srcW;
-                    cropH = Math.round(cropW / TARGET_RATIO);
-                }
-            }
-
-            const cropX = Math.floor((srcW - cropW) / 2);
-            const cropY = Math.floor((srcH - cropH) / 2);
-
-            let outW = cropW;
-            let outH = cropH;
-
-            if (cropW >= TARGET_W && cropH >= TARGET_H) {
-                outW = TARGET_W;
-                outH = TARGET_H;
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = outW;
-            canvas.height = outH;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(
-                img,
-                cropX, cropY, cropW, cropH,
-                0, 0, outW, outH
-            );
-
-            return canvas;
-        }
-
-
         if (document.title === "ホーム画面（学生・保護者）") {
-            const indexMainVisualUserLastLogin = document.getElementsByClassName("index-main-visual-user-last-login")[0];
-            indexMainVisualUserLastLogin.innerHTML += ` | <a href="${updateURL}" title="Comfortable Gakujo をアップデート"><span style="display: inline-block; text-decoration: underline; color: blue"">Comfortable Gakujo v${version}</span></a>`;
+            installHomeAppearance();
+            const versionLink = document.createElement("a");
+            versionLink.className = "cg-version-link";
+            versionLink.href = updateURL;
+            versionLink.title = "Comfortable Gakujo をアップデート";
+            versionLink.textContent = `Comfortable Gakujo v${version}`;
+            document.querySelector(".index-main-visual-user-information")?.appendChild(versionLink);
 
             observeUntilReady(() => {
                 const countElement = document.getElementsByClassName("count")[0];
@@ -1100,7 +1606,7 @@
                 `;
             document.head.appendChild(style);
             indexNoticeOtherItems.appendChild(li);
-            installHomeTaskCountdown();
+            installHomeTaskCountdown(pageBackground, li);
 
             window.addEventListener('change', (e) => {
                 if (e.target.id === 'cg-grade-save-toggle') {
@@ -1116,105 +1622,6 @@
                 }
             });
 
-            const indexMainVisualBg = document.getElementsByClassName("index-main-visual-bg")[0];
-            const savedImage = localStorage.getItem("cg-header-image");
-
-            if (savedImage) {
-                indexMainVisualBg.style.backgroundImage = `url(${savedImage})`;
-            }
-
-            const contents = document.getElementsByClassName("index-main-visual")[0];
-            if (!contents || document.getElementById("cg-header-uploader")) return;
-
-            const uploaderWrapper = document.createElement("div");
-            uploaderWrapper.id = "cg-header-uploader";
-            uploaderWrapper.style.position = "absolute";
-            uploaderWrapper.style.top = "1rem";
-            uploaderWrapper.style.right = "1rem";
-            uploaderWrapper.style.zIndex = "20";
-
-            uploaderWrapper.style.width = "fit-content";
-
-            const uploadBtn = document.createElement("button");
-            uploadBtn.type = "button";
-            uploadBtn.id = "cg-header-uploader-btn";
-            uploadBtn.className = "c-btn c-btn-line";
-            uploadBtn.style.minWidth = "auto";
-            uploadBtn.style.display = "inline-block";
-            uploadBtn.innerHTML = `
-                <span class="c-btn-link">
-                    <i class="c-icon-edit" style="margin: 0;" aria-hidden="true"></i>
-                </span>
-            `;
-
-            const removeBtn = document.createElement("button");
-            removeBtn.type = "button";
-            removeBtn.id = "cg-header-remove-btn";
-            removeBtn.className = "c-btn c-btn-line";
-            removeBtn.style.marginLeft = "0.5rem";
-            removeBtn.style.minWidth = "auto";
-            removeBtn.style.display = "inline-block";
-            removeBtn.innerHTML = `
-                <span class="c-btn-link">
-                    <i class="c-icon-close" style="margin: 0;" aria-hidden="true"></i>
-                </span>
-            `;
-
-            const fileInput = document.createElement("input");
-            fileInput.type = "file";
-            fileInput.id = "cg-header-file";
-            fileInput.accept = ".png,.jpg,.jpeg,.gif";
-            fileInput.hidden = true;
-
-            uploadBtn.addEventListener("click", (e) => {
-                fileInput.click();
-            }, true);
-
-            uploaderWrapper.appendChild(uploadBtn);
-            uploaderWrapper.appendChild(removeBtn);
-            uploaderWrapper.appendChild(fileInput);
-            contents.appendChild(uploaderWrapper);
-
-            fileInput.addEventListener("change", (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = cropHeaderImage(img);
-                        const base64 = canvas.toDataURL("image/png");
-                        const sizeMB = base64.length / (1024 * 1024);
-
-                        if (sizeMB > 3) {
-                            alert("画像サイズは3MB以下にしてください");
-                            return;
-                        }
-
-                        localStorage.setItem("cg-header-image", base64);
-
-                        const bg = document.getElementsByClassName("index-main-visual-bg")[0];
-                        if (bg) {
-                            bg.style.backgroundImage = `url(${base64})`;
-                        }
-
-                        console.log("[CG] Header image updated");
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-
-                fileInput.value = "";
-            });
-
-            removeBtn.addEventListener("click", (e) => {
-                localStorage.removeItem("cg-header-image");
-                const bg = document.getElementsByClassName("index-main-visual-bg")[0];
-                if (bg) {
-                    bg.style.backgroundImage = `url(./img/bg_mv01.jpg)`;
-                }
-            });
         } else if (document.title === "課題・アンケートリスト") {
             let processedSet = new WeakSet();
             let hiddenCount = 0;
@@ -1908,7 +2315,7 @@
                     display: block;
                     top: 0;
                     z-index: 2;
-                    width: 76px;
+                    width: 88px;
                     height: 100vh;
                     padding-top: 76px;
                 }
@@ -1916,14 +2323,15 @@
                     display: block;
                     text-align: center;
                     height: 76px;
-                    padding: 15px;
+                    padding: 15px 10px;
+                    white-space: nowrap;
                     text-decoration: none;
                     border-top: 1px solid #ccc;
                     border-bottom: 1px solid #ccc;
                     font-size: 10px;
                 }
                 .c-container {
-                    padding-left: 76px;
+                    padding-left: 88px;
                 }
                 @media print, screen and (max-width: 560px) {
                     #cg-sidebar {
@@ -1955,4 +2363,6 @@
                 `;
         }
     }
+
+    installEarlyAppearance();
 })();

@@ -1,6 +1,6 @@
 # Comfortable Gakujo for Safari
 
-![version](https://img.shields.io/badge/version-1.11.4-green)
+![version](https://img.shields.io/badge/version-1.12.0-green)
 
 静岡大学の学情を使いやすくするユーザースクリプトです．
 woody-1227さんの [Comfortable-Gakujo](https://github.com/woody-1227/Comfortable-Gakujo) を，Safariでも使えるようにしました．実行には [Userscripts](https://github.com/quoid/userscripts) を使っています．
@@ -21,9 +21,11 @@ woody-1227さんの [Comfortable-Gakujo](https://github.com/woody-1227/Comfortab
 
 - 課題の締め切り順ソート，残り時間の表示，提出済み課題の色分け・非表示
 - 成績更新通知，年度・学期での絞り込み，授業の曜日・コマ順表示
-- サイドバー，添付ファイルのプレビュー，ヘッダー画像の変更など
+- サイドバー，添付ファイルのプレビュー，背景画像の変更など
 
 詳しくは [機能一覧](docs/features.md) を参照してください．
+
+背景画像は画面右下の鉛筆から，通常時・n日未満・1日未満の3種類を選べます．画像を選んだ後，枠の位置と拡大率を調整して保存します．nは初期値3日で，2以上の整数に変更できます．画像は半透明の上部メニューの背後まで，ウインドウ全体に表示します．大きさはウインドウに合わせて自動で変わります．ホームでは締め切りに応じて切り替え，他のページでは通常時の画像を使います．各画像の「元に戻す」で標準の背景に戻ります．
 
 ## 更新
 
@@ -38,7 +40,7 @@ Userscriptsの `Available Updates` から更新します．macOSではエディ�
 - 生成AIによって生成されたソースコードを含みます．
 - SSOの自動同意を有効にすると，既定の属性のまま同意ボタンを押します．
 - 設定や非表示課題はCookie，背景画像はlocalStorage，提出取消後の復帰先はsessionStorageに保存します．端末間では同期しません．
-- 締め切りまで3日未満はオレンジ，1日未満は赤の警告背景を優先します．その間，選んだ背景画像は表示されません．
+- 締め切りまでn日未満・1日未満では，それぞれに設定した背景を表示します．画像が未設定の場合はオレンジ・赤の警告柄になります．
 - macOSで基本動作を確認しています．iOS・iPadOSは未確認です．各機能の確認状況やテスト方法は [検証メモ](docs/compatibility.md) にまとめています．
 
 ## ライセンス
