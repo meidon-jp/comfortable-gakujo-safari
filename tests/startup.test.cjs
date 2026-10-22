@@ -80,6 +80,26 @@ test('background never modifies SSO or embedded pages', () => {
     }
 });
 
+test('glass content styles are limited to task and notice list/detail pages', () => {
+    for (const [title, glass, taskDetail, notice] of [
+        ['課題・アンケートリスト', true, false, false],
+        ['課題・アンケート提出', true, true, false],
+        ['課題・アンケート詳細', true, true, false],
+        ['連絡一覧', true, false, true],
+        ['連絡詳細', true, false, true],
+        ['ホーム画面（学生・保護者）', false, false, false],
+        ['成績情報', false, false, false],
+        ['履修登録', false, false, false],
+    ]) {
+        const state = earlyPage({ ready: true });
+        state.context.document.title = title;
+        state.context.installEarlyAppearance();
+        assert.equal(state.classes.has('cg-glass-content'), glass, title);
+        assert.equal(state.classes.has('cg-task-detail'), taskDetail, title);
+        assert.equal(state.classes.has('cg-notice-page'), notice, title);
+    }
+});
+
 test('reload chooses the warning image before attaching the background and preloads all three images', () => {
     const state = earlyPage({ home: true, ready: true, deadlines: [Date.now() + 1.5 * 86400000] });
     state.context.installEarlyAppearance();

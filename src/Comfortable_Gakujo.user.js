@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Comfortable Gakujo (Safari Userscripts)
 // @namespace    https://github.com/meidon-jp/comfortable-gakujo-safari
-// @version      1.12.12
+// @version      1.12.15
 // @description  READMEを必ず読んでからご利用ください：https://github.com/meidon-jp/comfortable-gakujo-safari/blob/main/README.md
 // @author       woody_1227
 // @license      MIT
@@ -43,7 +43,7 @@
 (function () {
     'use strict';
 
-    const version = "1.12.12";
+    const version = "1.12.15";
     const updateURL = "https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js";
 
     function waitForSelector(selector, timeout = 10000) {
@@ -154,35 +154,74 @@
                         background-image: var(--cg-header-critical-image, repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 60, 60, .2) 32px 64px),
                             radial-gradient(ellipse at 60% 50%, #bb172c, #540b18 65%, #220910)) !important;
                     }
-                    .cg-task-list .c-container .c-box-shadow {
+                    .cg-glass-content .c-container .c-box-shadow {
                         background: rgba(255, 255, 255, .76); border: 1px solid #ffffff8c; border-radius: 18px;
                         box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
                     }
-                    .cg-task-list .c-heading { color: #253044; }
-                    .cg-task-list .c-heading-container {
+                    .cg-glass-content .c-container .c-box-shadow .c-box-shadow {
+                        background: transparent; border: 0; box-shadow: none;
+                        -webkit-backdrop-filter: none; backdrop-filter: none;
+                    }
+                    .cg-glass-content .c-heading { color: #253044; }
+                    .cg-glass-content .c-heading-container {
                         background-color: rgba(255, 255, 255, .24); color: #253044;
                         border-radius: 18px 18px 0 0; border-bottom: 1px solid #52617424;
                     }
-                    .cg-task-list .c-search-accordion-contents,
-                    .cg-task-list .select_wrapper { background-color: transparent; }
-                    .cg-task-list .c-container select,
-                    .cg-task-list .c-container input[type="text"],
-                    .cg-task-list .c-container input[type="search"],
-                    .cg-task-list .c-btn-detail {
+                    .cg-glass-content .c-search-accordion-contents,
+                    .cg-glass-content .select_wrapper { background-color: transparent; }
+                    .cg-glass-content .c-container select,
+                    .cg-glass-content .c-container input[type="text"],
+                    .cg-glass-content .c-container input[type="search"],
+                    .cg-glass-content .c-container input[type="date"],
+                    .cg-glass-content .c-container input[type="number"],
+                    .cg-glass-content .c-container textarea,
+                    .cg-glass-content .c-btn-detail {
                         background-color: rgba(255, 255, 255, .9); border-color: #52617430; border-radius: 6px;
                     }
-                    .cg-task-list .c-btn-search-large,
-                    .cg-task-list .paginate_button.current { background-color: rgba(35, 41, 50, .8); border-radius: 6px; }
-                    .cg-task-list #dataTable01 th,
-                    .cg-task-list #hiddenTasksTable th {
+                    .cg-glass-content .c-btn-search-large,
+                    .cg-glass-content .paginate_button.current { background-color: rgba(35, 41, 50, .8); border-radius: 6px; }
+                    .cg-glass-content #dataTable01 th,
+                    .cg-glass-content #hiddenTasksTable th {
                         background-color: rgba(255, 255, 255, .36); color: #34445b; border-color: #52617436;
                     }
-                    .cg-task-list #dataTable01 td,
-                    .cg-task-list #hiddenTasksTable td { background-color: transparent; border-color: #52617436; }
-                    .cg-task-list #dataTable01 tbody tr,
-                    .cg-task-list #hiddenTasksTable tbody tr { background-color: rgba(255, 255, 255, .12); }
-                    .cg-task-list #dataTable01 tbody tr:hover,
-                    .cg-task-list #hiddenTasksTable tbody tr:hover { background-color: rgba(255, 255, 255, .3); }
+                    .cg-glass-content #dataTable01 td,
+                    .cg-glass-content #hiddenTasksTable td { background-color: transparent; border-color: #52617436; }
+                    .cg-glass-content #dataTable01 tbody tr,
+                    .cg-glass-content #hiddenTasksTable tbody tr { background-color: rgba(255, 255, 255, .12); }
+                    .cg-glass-content #dataTable01 tbody tr:hover,
+                    .cg-glass-content #hiddenTasksTable tbody tr:hover { background-color: rgba(255, 255, 255, .3); }
+                    .cg-task-detail .question-heading-container,
+                    .cg-notice-page .c-fixed-heading-container {
+                        background-color: rgba(255, 255, 255, .24); color: #253044;
+                        border-radius: 18px 18px 0 0; border-color: #ffffff8c;
+                    }
+                    .cg-task-detail .status_box .text,
+                    .cg-task-detail .deadline_box .days {
+                        background-color: rgba(255, 255, 255, .5); border-radius: 6px;
+                    }
+                    .cg-task-detail .c-table-line th {
+                        background-color: rgba(255, 255, 255, .24); color: #34445b;
+                    }
+                    .cg-task-detail .question-heading-h4,
+                    .cg-task-detail .submission_place dt,
+                    .cg-task-detail .question-summary dt,
+                    .cg-task-detail .question-reference-data dt,
+                    .cg-task-detail .table-question01 dt {
+                        background-color: rgba(255, 255, 255, .24); color: #34445b; border-color: #52617436;
+                    }
+                    .cg-task-detail .question-heading-h4 { border-radius: 8px; }
+                    .cg-task-detail .c-table-line th,
+                    .cg-task-detail .c-table-line td { border-color: #52617436; }
+                    .cg-task-detail .fileList .preview {
+                        background-color: rgba(255, 255, 255, .36); border-radius: 8px;
+                    }
+                    .cg-task-detail .lcu-dropzone {
+                        background-color: rgba(255, 255, 255, .55); border-color: #52617436; border-radius: 10px;
+                    }
+                    .cg-page-appearance .c-header-information-popup {
+                        background: rgba(255, 255, 255, .76); border: 1px solid #ffffff8c; border-radius: 18px;
+                        box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+                    }
                     .cg-page-appearance .index-main-visual { min-height: 0; }
                     .cg-page-appearance .index-main-visual-bg { display: none; }
                     .cg-page-appearance .index-main-visual .sp_box {
@@ -224,6 +263,11 @@
             if (!document.body || !wrapper || !document.querySelector(".c-header")) return false;
             document.documentElement.classList.add("cg-page-appearance");
             if (document.title === "課題・アンケートリスト") document.documentElement.classList.add("cg-task-list");
+            if (["課題・アンケートリスト", "課題・アンケート提出", "課題・アンケート詳細", "連絡一覧", "連絡詳細"].includes(document.title)) {
+                document.documentElement.classList.add("cg-glass-content");
+            }
+            if (["課題・アンケート提出", "課題・アンケート詳細"].includes(document.title)) document.documentElement.classList.add("cg-task-detail");
+            if (["連絡一覧", "連絡詳細"].includes(document.title)) document.documentElement.classList.add("cg-notice-page");
             if (!document.getElementById("cg-page-background")) {
                 const background = document.createElement("div");
                 background.id = "cg-page-background";
@@ -937,6 +981,37 @@
         } catch (error) { console.debug("[CG] 成績パネルの背景調整を省略", error); }
     }
 
+    function installHomeGradeDisclosure() {
+        const dashboard = document.querySelector("#dashboard");
+        const button = dashboard?.querySelector(".c-btn-toggle.js-accordion");
+        const body = dashboard?.querySelector(".index-contents-body");
+        if (!button || !body || button.classList.contains("cg-grade-toggle")) return;
+        button.classList.add("cg-grade-toggle");
+        button.classList.remove("is-open");
+        body.style.display = "none";
+        body.id ||= "cg-home-grade-content";
+        button.setAttribute("role", "button");
+        button.setAttribute("aria-label", "成績ダッシュボードを開閉");
+        button.setAttribute("aria-controls", body.id);
+        const update = () => {
+            const expanded = button.classList.contains("is-open");
+            button.setAttribute("aria-expanded", String(expanded));
+            dashboard.classList.toggle("cg-grade-collapsed", !expanded);
+            if (expanded) requestAnimationFrame(() => {
+                // Keep the portal's accordion handler; only resize charts after it opens.
+                try {
+                    const frameWindow = body.querySelector("iframe")?.contentWindow;
+                    frameWindow?.dispatchEvent(new frameWindow.Event("resize"));
+                } catch (error) { console.debug("[CG] 成績グラフのサイズ調整を省略", error); }
+            });
+        };
+        update();
+        new MutationObserver(update).observe(button, { attributes: true, attributeFilter: ["class"] });
+        button.addEventListener("keydown", event => {
+            if (event.key === " ") { event.preventDefault(); button.click(); }
+        });
+    }
+
     function installHomeAppearance() {
         document.documentElement.classList.add("cg-home");
         const style = document.createElement("style");
@@ -991,6 +1066,21 @@
             .cg-home .index-container .c-box-shadow section,
             .cg-home .index-container .c-box-shadow iframe { background-color: transparent; }
             .cg-home .index-container .index-contents-heading { color: #253044; font-size: 20px; }
+            .cg-home .cg-grade-toggle {
+                position: relative; display: inline-flex; width: 34px; height: 34px;
+                border: 1px solid #53617430; border-radius: 10px; background: rgba(255, 255, 255, .45);
+                color: #536174; box-shadow: none;
+            }
+            .cg-home .cg-grade-toggle:hover { background: rgba(255, 255, 255, .75); }
+            .cg-home .cg-grade-toggle::before { display: none; }
+            .cg-home .cg-grade-toggle::after {
+                content: ""; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: 0;
+                opacity: 1; background: none; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
+                transform: translate(-50%, -65%) rotate(45deg);
+            }
+            .cg-home .cg-grade-toggle.is-open::after { transform: translate(-50%, -30%) rotate(225deg); }
+            .cg-home .cg-grade-toggle:focus-visible { outline: 2px solid #536174; outline-offset: 3px; }
+            .cg-home #dashboard.cg-grade-collapsed #recordDashBoardReading { display: none !important; }
             .cg-home .index-container .scheduleList,
             .cg-home .index-container dd.content { background-color: transparent !important; }
             .cg-home .index-container .scheduleList_item,
@@ -1015,13 +1105,14 @@
             }
         `;
         document.head.appendChild(style);
+        installHomeGradeDisclosure();
         document.querySelectorAll("iframe").forEach(styleHomeGradeFrame);
         document.addEventListener("load", event => {
             if (event.target.tagName === "IFRAME") styleHomeGradeFrame(event.target);
         }, true);
     }
 
-    function prepareHeaderImage(img) {
+    function prepareHeaderImage(img, maxLength = 3 * 1024 * 1024) {
         const width = img.naturalWidth || img.width;
         const height = img.naturalHeight || img.height;
         if (!(width > 0 && height > 0)) throw new Error("画像のサイズを取得できませんでした．");
@@ -1034,14 +1125,42 @@
         // Save the entire image. CSS fits it to the viewport without baking in a crop.
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         let image = canvas.toDataURL("image/png");
-        if (image.length > 3 * 1024 * 1024) {
+        if (image.length <= maxLength) return image;
+        while (true) {
             ctx.globalCompositeOperation = "destination-over";
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            image = canvas.toDataURL("image/jpeg", 0.9);
+            for (const quality of [0.9, 0.75, 0.6]) {
+                image = canvas.toDataURL("image/jpeg", quality);
+                if (image.length <= maxLength) return image;
+            }
+            if (Math.max(canvas.width, canvas.height) <= 256) break;
+            canvas.width = Math.max(1, Math.round(canvas.width * 0.75));
+            canvas.height = Math.max(1, Math.round(canvas.height * 0.75));
+            ctx.globalCompositeOperation = "source-over";
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         }
-        if (image.length > 3 * 1024 * 1024) throw new Error("保存する画像は3MB以下にしてください．");
-        return image;
+        throw new Error("画像を十分に圧縮できませんでした．別の画像でお試しください．");
+    }
+
+    function saveHeaderImage(background, state, image) {
+        let maxLength = 3 * 1024 * 1024;
+        while (true) {
+            const data = prepareHeaderImage(image, maxLength);
+            try {
+                background.setImage(state, data);
+                return;
+            } catch (error) {
+                if (error?.name !== "QuotaExceededError" && error?.code !== 22 && error?.code !== 1014) {
+                    throw new Error("画像を保存できませんでした．ブラウザの保存設定を確認してください．", { cause: error });
+                }
+                // Shrink only the selected image; failed writes leave every previous image intact.
+                maxLength = Math.floor(Math.min(maxLength, data.length) * 0.6);
+                if (maxLength < 64 * 1024) {
+                    throw new Error("背景画像の保存容量が足りません．不要な背景を元に戻してから，もう一度画像を選んでください．", { cause: error });
+                }
+            }
+        }
     }
 
     function installHeaderBackgroundSettings() {
@@ -1132,7 +1251,7 @@
         panel.appendChild(daysLabel);
         const note = document.createElement("p");
         note.className = "cg-header-note";
-        note.textContent = "画像を選ぶとそのまま保存し，縦横比を保って画面全体に表示します．ホームでは締め切りに応じて切り替わり，他のページでは通常時の画像を使います．日数は2以上の整数です．";
+        note.textContent = "画像を選ぶと保存容量に合わせて縮小・圧縮し，縦横比を保って画面全体に表示します．ホームでは締め切りに応じて切り替わり，他のページでは通常時の画像を使います．日数は2以上の整数です．";
         panel.appendChild(note);
 
         const labels = new Map();
@@ -1178,9 +1297,7 @@
                     image.onerror = () => { showError("この画像は読み込めません．PNGやJPEGでお試しください．"); finish(); };
                     image.onload = () => {
                         try {
-                            const data = prepareHeaderImage(image);
-                            try { background.setImage(state, data); }
-                            catch (error) { throw new Error("画像を保存できませんでした．画像を小さくするか，不要な背景を元に戻してください．"); }
+                            saveHeaderImage(background, state, image);
                             refresh();
                         } catch (error) {
                             showError(error.message || "画像を変更できませんでした．");

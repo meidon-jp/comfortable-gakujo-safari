@@ -33,6 +33,84 @@ test('other frames and foreign origins are never inspected or modified', () => {
     context.styleHomeGradeFrame({ src: '/lcu-web/SC_01002B00_01/recordDashBoard', contentDocument: null });
 });
 
+function disclosureFixture() {
+    let observer, resizes = 0, nativeClicks = 0;
+    const classes = new Set(['c-btn-toggle', 'js-accordion', 'is-open']);
+    const change = (name, enabled) => {
+        enabled ? classes.add(name) : classes.delete(name);
+        observer?.();
+    };
+    const button = { attributes: {},
+        classList: { add: name => change(name, true), remove: name => change(name, false), contains: name => classes.has(name) },
+        setAttribute(name, value) { this.attributes[name] = value; },
+        addEventListener(type, callback) { this[type] = callback; },
+        // Simulate the existing portal handler; the script must keep using it.
+        click() { nativeClicks++; body.style.display = classes.has('is-open') ? 'none' : 'block'; change('is-open', !classes.has('is-open')); },
+    };
+    const frameWindow = { Event, dispatchEvent(event) { assert.equal(event.type, 'resize'); resizes++; } };
+    const frame = { contentWindow: frameWindow };
+    const body = { id: 'content02', style: { display: 'block' }, querySelector: () => frame };
+    const dashboardClasses = new Set();
+    const dashboard = { querySelector: selector => selector === '.c-btn-toggle.js-accordion' ? button : body,
+        classList: { toggle(name, enabled) { enabled ? dashboardClasses.add(name) : dashboardClasses.delete(name); } } };
+    const pendingFrames = [];
+    const context = vm.createContext({ console, requestAnimationFrame: callback => pendingFrames.push(callback),
+        MutationObserver: class { constructor(callback) { this.callback = callback; } observe(target, options) {
+            assert.equal(target, button); assert.equal(options.attributeFilter.join(), 'class'); observer = this.callback;
+        } },
+        document: { querySelector: selector => selector === '#dashboard' ? dashboard : null,
+            createElement: () => assert.fail('must reuse the native control') },
+    });
+    vm.runInContext(source.slice(source.indexOf('    function installHomeGradeDisclosure('), source.indexOf('    function installHomeAppearance(')), context);
+    return { context, body, button, dashboardClasses, frame, pendingFrames, resizes: () => resizes, nativeClicks: () => nativeClicks };
+}
+
+test('home grades start closed and keep the native accordion and iframe', () => {
+    const f = disclosureFixture();
+    const nativeClick = f.button.click;
+    f.context.installHomeGradeDisclosure();
+    assert.equal(f.body.style.display, 'none');
+    assert.equal(f.button.attributes['aria-expanded'], 'false');
+    assert.equal(f.button.attributes['aria-controls'], 'content02');
+    assert.equal(f.button.attributes.role, 'button');
+    assert.equal(f.nativeClicks(), 0, 'initial setup must not navigate or animate');
+    f.button.click();
+    assert.equal(f.button.click, nativeClick, 'keep the portal click handler');
+    assert.equal(f.body.style.display, 'block');
+    assert.equal(f.button.attributes['aria-expanded'], 'true');
+    assert.equal(f.dashboardClasses.has('cg-grade-collapsed'), false);
+    assert.equal(f.resizes(), 0, 'resize waits until the frame is visible');
+    f.pendingFrames.shift()();
+    assert.equal(f.resizes(), 1);
+    assert.equal(f.body.querySelector('iframe'), f.frame);
+    f.context.installHomeGradeDisclosure();
+    assert.equal(f.body.style.display, 'block', 'repeat setup must not close an open dashboard');
+    f.button.click();
+    assert.equal(f.body.style.display, 'none');
+    assert.equal(f.button.attributes['aria-expanded'], 'false');
+    assert.equal(f.dashboardClasses.has('cg-grade-collapsed'), true);
+    assert.equal(f.pendingFrames.length, 0);
+});
+
+test('native grade disclosure supports Space without scrolling the page', () => {
+    const f = disclosureFixture();
+    f.context.installHomeGradeDisclosure();
+    let prevented = false;
+    f.button.keydown({ key: ' ', preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    assert.equal(f.nativeClicks(), 1);
+    assert.equal(f.body.style.display, 'block');
+    f.button.keydown({ key: 'Enter', preventDefault() { assert.fail('native Enter must be preserved'); } });
+    assert.equal(f.nativeClicks(), 1);
+});
+
+test('grade disclosure leaves pages without the home dashboard untouched', () => {
+    const f = disclosureFixture();
+    f.context.document.querySelector = () => null;
+    f.context.installHomeGradeDisclosure();
+    assert.equal(f.body.style.display, 'block');
+});
+
 function node() {
         return { children: [], style: {}, classList: { add() {} },
             appendChild(child) {
