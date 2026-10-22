@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Comfortable Gakujo (Safari Userscripts)
 // @namespace    https://github.com/meidon-jp/comfortable-gakujo-safari
-// @version      1.12.4
+// @version      1.12.12
 // @description  READMEを必ず読んでからご利用ください：https://github.com/meidon-jp/comfortable-gakujo-safari/blob/main/README.md
 // @author       woody_1227
 // @license      MIT
@@ -43,7 +43,7 @@
 (function () {
     'use strict';
 
-    const version = "1.12.4";
+    const version = "1.12.12";
     const updateURL = "https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js";
 
     function waitForSelector(selector, timeout = 10000) {
@@ -91,26 +91,57 @@
                 const style = document.createElement("style");
                 style.id = "cg-early-appearance";
                 style.textContent = `
+                    .cg-page-appearance { --cg-navigation-background: rgba(255, 255, 255, .58); }
                     .cg-page-appearance body { isolation: isolate; }
                     .cg-page-appearance .c-wrapper { isolation: isolate; background: transparent; }
                     .cg-page-appearance .c-footer,
                     .cg-page-appearance .c-footer-fixed,
                     .cg-page-appearance .c-footer-inner { background-color: transparent; }
                     .cg-page-appearance .c-header {
-                        background-color: rgba(255, 255, 255, .58);
+                        background-color: var(--cg-navigation-background);
                         border-bottom: 1px solid #ffffff80; box-shadow: 0 2px 18px #18253b0d;
                         -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
                     }
-                    .cg-page-appearance .c-main-menu { background-color: transparent; }
+                    .cg-page-appearance .c-main-menu { background-color: transparent !important; }
+                    .cg-page-appearance .c-main-menu-overlay { background-color: transparent; }
+                    .cg-page-appearance .c-main-menu .c-gnav:not(#cg-sidebar) {
+                        background: var(--cg-navigation-background) !important;
+                        border-right: 1px solid #52617424;
+                    }
+                    /* Blurring the native scroll container clips its fixed-position flyout. */
                     .cg-page-appearance #cg-sidebar {
-                        background-color: rgba(35, 41, 50, .58);
-                        border-right: 1px solid #ffffff30;
+                        background: transparent !important;
+                        border-right: none;
+                    }
+                    .cg-page-appearance #cg-sidebar a,
+                    .cg-page-appearance body:not(.is-main-menu-open) .c-main-menu .c-main-menu-btn {
+                        background-color: var(--cg-navigation-background) !important;
                         -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
                     }
-                    .cg-page-appearance .c-main-menu .c-main-menu-btn,
-                    .cg-page-appearance #cg-sidebar a { background-color: transparent; }
+                    .cg-page-appearance .c-main-menu .c-gnav-dropdown-content {
+                        background-color: var(--cg-navigation-background) !important;
+                    }
+                    .cg-page-appearance .c-main-menu .c-gnav-children { box-shadow: none; }
+                    .cg-page-appearance .c-main-menu .c-main-menu-btn { background-color: transparent; }
+                    .cg-page-appearance .c-main-menu .c-gnav-link,
+                    .cg-page-appearance .c-main-menu .c-gnav-children-link {
+                        background-color: transparent !important; color: #253044; box-shadow: none;
+                    }
+                    .cg-page-appearance .c-main-menu .c-gnav-items,
+                    .cg-page-appearance .c-main-menu .c-gnav-item,
+                    .cg-page-appearance .c-main-menu .c-gnav-children,
+                    .cg-page-appearance .c-main-menu .c-gnav-children-items,
+                    .cg-page-appearance .c-main-menu .c-gnav-children-item { background-color: transparent !important; }
+                    .cg-page-appearance .c-main-menu .c-gnav-link:not(.cg-gnav-link) { filter: brightness(0) opacity(.8); }
+                    .cg-page-appearance #cg-sidebar a { color: #253044; border-color: #52617424; }
+                    .cg-page-appearance #cg-sidebar i { color: inherit; }
+                    .cg-page-appearance .c-main-menu .c-main-menu-btn img { filter: brightness(0) opacity(.8); }
+                    .cg-page-appearance .c-main-menu .c-gnav-link:hover,
+                    .cg-page-appearance .c-main-menu .c-gnav-link:focus-visible,
+                    .cg-page-appearance .c-main-menu .c-gnav-children-link:hover,
+                    .cg-page-appearance .c-main-menu .c-gnav-children-link:focus-visible { background-color: #52617414 !important; }
                     .cg-page-appearance #cg-sidebar a:hover,
-                    .cg-page-appearance #cg-sidebar a:focus-visible { background-color: #ffffff24; }
+                    .cg-page-appearance #cg-sidebar a:focus-visible { background-image: linear-gradient(#52617414, #52617414); }
                     #cg-page-background {
                         position: fixed; inset: 0; z-index: -1; pointer-events: none;
                         background-color: #eef1f4; background-position: center; background-size: cover; background-repeat: no-repeat;
@@ -124,8 +155,8 @@
                             radial-gradient(ellipse at 60% 50%, #bb172c, #540b18 65%, #220910)) !important;
                     }
                     .cg-task-list .c-container .c-box-shadow {
-                        background: rgba(255, 255, 255, .52); border: 1px solid #ffffff8c; border-radius: 18px;
-                        box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+                        background: rgba(255, 255, 255, .76); border: 1px solid #ffffff8c; border-radius: 18px;
+                        box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
                     }
                     .cg-task-list .c-heading { color: #253044; }
                     .cg-task-list .c-heading-container {
@@ -138,16 +169,16 @@
                     .cg-task-list .c-container input[type="text"],
                     .cg-task-list .c-container input[type="search"],
                     .cg-task-list .c-btn-detail {
-                        background-color: rgba(255, 255, 255, .65); border-color: #52617430; border-radius: 6px;
+                        background-color: rgba(255, 255, 255, .9); border-color: #52617430; border-radius: 6px;
                     }
                     .cg-task-list .c-btn-search-large,
                     .cg-task-list .paginate_button.current { background-color: rgba(35, 41, 50, .8); border-radius: 6px; }
                     .cg-task-list #dataTable01 th,
                     .cg-task-list #hiddenTasksTable th {
-                        background-color: rgba(255, 255, 255, .36); color: #536174; border-color: #52617424;
+                        background-color: rgba(255, 255, 255, .36); color: #34445b; border-color: #52617436;
                     }
                     .cg-task-list #dataTable01 td,
-                    .cg-task-list #hiddenTasksTable td { background-color: transparent; border-color: #52617424; }
+                    .cg-task-list #hiddenTasksTable td { background-color: transparent; border-color: #52617436; }
                     .cg-task-list #dataTable01 tbody tr,
                     .cg-task-list #hiddenTasksTable tbody tr { background-color: rgba(255, 255, 255, .12); }
                     .cg-task-list #dataTable01 tbody tr:hover,
@@ -173,6 +204,7 @@
                         position: static; margin: 0; padding: 12px 16px; border-radius: 8px; background: #fffffff2;
                     }
                     @media screen and (max-width: 560px) {
+                        .cg-page-appearance .c-main-menu .c-main-menu-btn { background-color: var(--cg-navigation-background); }
                         .cg-page-appearance .index-main-visual .sp_box { padding: 16px 0; }
                     }
                 `;
@@ -915,8 +947,8 @@
                 display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); align-items: center;
                 width: calc(100% - 40px); max-width: 1200px; margin: 24px auto; padding: 24px 28px; gap: 28px;
                 box-sizing: border-box; border: 1px solid #ffffff9c; border-radius: 18px;
-                background: rgba(255, 255, 255, .58); box-shadow: 0 8px 32px #18253b12;
-                -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+                background: rgba(255, 255, 255, .78); box-shadow: 0 8px 32px #18253b12;
+                -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
             }
             .cg-home .index-main-visual-top { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; margin: 0; padding: 0; }
             .cg-home .index-main-visual-bottom { grid-column: 1; grid-row: 1; width: 100%; min-width: 0; }
@@ -952,8 +984,8 @@
             .cg-home .cg-checkbox-wrapper-8 .cg-tgl-skewed + .cg-tgl-btn:after,
             .cg-home .cg-checkbox-wrapper-8 .cg-tgl-skewed + .cg-tgl-btn:before { transform: none; }
             .cg-home .index-container .c-box-shadow {
-                background: rgba(255, 255, 255, .52); border: 1px solid #ffffff8c; border-radius: 18px;
-                box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+                background: rgba(255, 255, 255, .76); border: 1px solid #ffffff8c; border-radius: 18px;
+                box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
             }
             .cg-home .index-container .c-box-shadow > div,
             .cg-home .index-container .c-box-shadow section,
@@ -1731,12 +1763,12 @@
 
                     const statusCell = row.querySelector('td[data-label*="提出状況"]');
                     if (statusCell && statusCell.textContent.includes("提出済")) {
-                        row.style.backgroundColor = "rgba(229, 255, 229, .62)";
+                        row.style.backgroundColor = "rgba(229, 255, 229, .8)";
                         row.addEventListener('mouseover', () => {
-                            row.style.backgroundColor = "rgba(209, 255, 209, .78)";
+                            row.style.backgroundColor = "rgba(209, 255, 209, .9)";
                         });
                         row.addEventListener('mouseout', () => {
-                            row.style.backgroundColor = "rgba(229, 255, 229, .62)";
+                            row.style.backgroundColor = "rgba(229, 255, 229, .8)";
                         });
                     }
 

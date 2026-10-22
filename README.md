@@ -1,6 +1,6 @@
 # Comfortable Gakujo for Safari
 
-![version](https://img.shields.io/badge/version-1.12.4-green)
+![version](https://img.shields.io/badge/version-1.12.12-green)
 
 静岡大学の学情を使いやすくするユーザースクリプトです．
 woody-1227さんの [Comfortable-Gakujo](https://github.com/woody-1227/Comfortable-Gakujo) を，Safariでも使えるようにしました．実行には [Userscripts](https://github.com/quoid/userscripts) を使っています．
