@@ -140,8 +140,7 @@ test('settings panel selects, saves and resets each image and updates n', async 
         width = 2000; height = 1000;
         set src(value) { this.onload(); }
     };
-    vm.runInContext(source.slice(source.indexOf('    function headerCropRectangle('), source.indexOf('    async function fetchPreviewBlob(')), context);
-    context.chooseHeaderCrop = async (image, save, ratio) => { assert.equal(ratio, 912 / 724); save(context.cropHeaderImage(image, {}, ratio)); return true; };
+    vm.runInContext(source.slice(source.indexOf('    function prepareHeaderImage('), source.indexOf('    async function fetchPreviewBlob(')), context);
     const controller = context.installHeaderBackgroundSettings();
     const byId = id => elements.find(node => node.id === id);
     const panel = byId('cg-header-settings');
@@ -154,12 +153,14 @@ test('settings panel selects, saves and resets each image and updates n', async 
     assert.equal(rows.length, 3);
     for (const [index, key] of ['cg-header-image', 'cg-header-image-warning', 'cg-header-image-critical'].entries()) {
         const input = rows[index].children[2].children[2];
+        assert.equal(input.accept, 'image/*');
         input.files = [{ name: 'background.png' }];
         input.listeners.change();
         await new Promise(resolve => setImmediate(resolve));
         assert.equal(values.get(key), 'data:image/png;base64,chosen');
         assert.equal(rows[index].children[1].hidden, false);
         assert.equal(rows[index].children[2].children[0].disabled, false);
+        assert.equal(elements.some(node => node.tagName === 'dialog'), false);
     }
     controller.render(4 * day);
     const days = byId('cg-header-warning-days');
@@ -176,4 +177,20 @@ test('settings panel selects, saves and resets each image and updates n', async 
     assert.equal(values.has('cg-header-image-warning'), false);
     assert.equal(values.has('cg-header-image-critical'), true);
     assert.equal(rows[1].children[1].hidden, true);
+
+    const input = rows[0].children[2].children[2];
+    storage.setItem = () => { throw new Error('QuotaExceededError'); };
+    input.files = [{ name: 'replacement.webp' }];
+    input.listeners.change();
+    assert.equal(values.get('cg-header-image'), 'data:image/png;base64,chosen');
+    assert.match(byId('cg-header-settings-error').textContent, /画像を保存できません/);
+    assert.equal(rows[0].children[2].children[0].disabled, false, 'saving failure must allow retrying');
+    context.Image = class { set src(value) { this.onerror(); } };
+    input.listeners.change();
+    assert.match(byId('cg-header-settings-error').textContent, /この画像は読み込めません/);
+    assert.equal(rows[0].children[2].children[0].disabled, false);
+    context.FileReader = class { readAsDataURL() { this.onerror(); } };
+    input.listeners.change();
+    assert.match(byId('cg-header-settings-error').textContent, /画像を読み込めませんでした/);
+    assert.equal(rows[0].children[2].children[0].disabled, false);
 });

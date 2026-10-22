@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Comfortable Gakujo (Safari Userscripts)
 // @namespace    https://github.com/meidon-jp/comfortable-gakujo-safari
-// @version      1.12.0
+// @version      1.12.4
 // @description  READMEを必ず読んでからご利用ください：https://github.com/meidon-jp/comfortable-gakujo-safari/blob/main/README.md
 // @author       woody_1227
 // @license      MIT
@@ -43,7 +43,7 @@
 (function () {
     'use strict';
 
-    const version = "1.12.0";
+    const version = "1.12.4";
     const updateURL = "https://raw.githubusercontent.com/meidon-jp/comfortable-gakujo-safari/main/src/Comfortable_Gakujo.user.js";
 
     function waitForSelector(selector, timeout = 10000) {
@@ -65,6 +65,23 @@
         });
     }
 
+    function cachedHomeDeadline(now) {
+        try {
+            const deadlines = JSON.parse(sessionStorage.getItem("cg-home-deadlines"));
+            if (Array.isArray(deadlines)) return deadlines.filter(value => Number.isFinite(value) && value > now)
+                .reduce((nearest, value) => Math.min(nearest, value), Infinity);
+        } catch (error) { console.debug("[CG] 前回の締め切りを読み込めませんでした", error); }
+        return Infinity;
+    }
+
+    function cacheHomeDeadlines(texts) {
+        // Keep only timestamps in this tab; current task data corrects them on every home visit.
+        try {
+            const value = JSON.stringify(texts.map(homeTaskDeadline).filter(Number.isFinite));
+            if (sessionStorage.getItem("cg-home-deadlines") !== value) sessionStorage.setItem("cg-home-deadlines", value);
+        } catch (error) { console.debug("[CG] 締め切りの一時保存を省略", error); }
+    }
+
     function installEarlyAppearance() {
         // Keep SSO, login screens and embedded university pages unchanged.
         if (window.self !== window.top || location.hostname !== "gakujo.shizuoka.ac.jp") return;
@@ -74,12 +91,26 @@
                 const style = document.createElement("style");
                 style.id = "cg-early-appearance";
                 style.textContent = `
+                    .cg-page-appearance body { isolation: isolate; }
                     .cg-page-appearance .c-wrapper { isolation: isolate; background: transparent; }
+                    .cg-page-appearance .c-footer,
+                    .cg-page-appearance .c-footer-fixed,
+                    .cg-page-appearance .c-footer-inner { background-color: transparent; }
                     .cg-page-appearance .c-header {
                         background-color: rgba(255, 255, 255, .58);
                         border-bottom: 1px solid #ffffff80; box-shadow: 0 2px 18px #18253b0d;
                         -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
                     }
+                    .cg-page-appearance .c-main-menu { background-color: transparent; }
+                    .cg-page-appearance #cg-sidebar {
+                        background-color: rgba(35, 41, 50, .58);
+                        border-right: 1px solid #ffffff30;
+                        -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+                    }
+                    .cg-page-appearance .c-main-menu .c-main-menu-btn,
+                    .cg-page-appearance #cg-sidebar a { background-color: transparent; }
+                    .cg-page-appearance #cg-sidebar a:hover,
+                    .cg-page-appearance #cg-sidebar a:focus-visible { background-color: #ffffff24; }
                     #cg-page-background {
                         position: fixed; inset: 0; z-index: -1; pointer-events: none;
                         background-color: #eef1f4; background-position: center; background-size: cover; background-repeat: no-repeat;
@@ -92,6 +123,35 @@
                         background-image: var(--cg-header-critical-image, repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 60, 60, .2) 32px 64px),
                             radial-gradient(ellipse at 60% 50%, #bb172c, #540b18 65%, #220910)) !important;
                     }
+                    .cg-task-list .c-container .c-box-shadow {
+                        background: rgba(255, 255, 255, .52); border: 1px solid #ffffff8c; border-radius: 18px;
+                        box-shadow: 0 8px 32px #18253b12; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+                    }
+                    .cg-task-list .c-heading { color: #253044; }
+                    .cg-task-list .c-heading-container {
+                        background-color: rgba(255, 255, 255, .24); color: #253044;
+                        border-radius: 18px 18px 0 0; border-bottom: 1px solid #52617424;
+                    }
+                    .cg-task-list .c-search-accordion-contents,
+                    .cg-task-list .select_wrapper { background-color: transparent; }
+                    .cg-task-list .c-container select,
+                    .cg-task-list .c-container input[type="text"],
+                    .cg-task-list .c-container input[type="search"],
+                    .cg-task-list .c-btn-detail {
+                        background-color: rgba(255, 255, 255, .65); border-color: #52617430; border-radius: 6px;
+                    }
+                    .cg-task-list .c-btn-search-large,
+                    .cg-task-list .paginate_button.current { background-color: rgba(35, 41, 50, .8); border-radius: 6px; }
+                    .cg-task-list #dataTable01 th,
+                    .cg-task-list #hiddenTasksTable th {
+                        background-color: rgba(255, 255, 255, .36); color: #536174; border-color: #52617424;
+                    }
+                    .cg-task-list #dataTable01 td,
+                    .cg-task-list #hiddenTasksTable td { background-color: transparent; border-color: #52617424; }
+                    .cg-task-list #dataTable01 tbody tr,
+                    .cg-task-list #hiddenTasksTable tbody tr { background-color: rgba(255, 255, 255, .12); }
+                    .cg-task-list #dataTable01 tbody tr:hover,
+                    .cg-task-list #hiddenTasksTable tbody tr:hover { background-color: rgba(255, 255, 255, .3); }
                     .cg-page-appearance .index-main-visual { min-height: 0; }
                     .cg-page-appearance .index-main-visual-bg { display: none; }
                     .cg-page-appearance .index-main-visual .sp_box {
@@ -117,23 +177,34 @@
                     }
                 `;
                 try {
-                    const image = localStorage.getItem("cg-header-image");
-                    if (image) style.textContent += `
-                        #cg-page-background:not([data-cg-background-ready]) {
-                            background-image: url(${JSON.stringify(image)});
-                        }
+                    const properties = [];
+                    for (const [state, key] of Object.entries(headerImageKeys)) {
+                        const image = localStorage.getItem(key);
+                        if (image) properties.push(`${state === "normal" ? "background-image" : `--cg-header-${state}-image`}: url(${JSON.stringify(image)});`);
+                    }
+                    if (properties.length) style.textContent += `
+                        #cg-page-background:not([data-cg-background-ready]) { ${properties.join("\n")} }
                     `;
                 } catch (error) { console.debug("[CG] 背景画像の先行読込を省略", error); }
                 (document.head || document.documentElement).appendChild(style);
             }
             const wrapper = document.querySelector(".c-wrapper");
-            if (!wrapper || !document.querySelector(".c-header")) return false;
+            if (!document.body || !wrapper || !document.querySelector(".c-header")) return false;
             document.documentElement.classList.add("cg-page-appearance");
+            if (document.title === "課題・アンケートリスト") document.documentElement.classList.add("cg-task-list");
             if (!document.getElementById("cg-page-background")) {
                 const background = document.createElement("div");
                 background.id = "cg-page-background";
                 background.setAttribute("aria-hidden", "true");
-                wrapper.appendChild(background);
+                if (document.title === "ホーム画面（学生・保護者）") {
+                    let warningDays = 3;
+                    try { warningDays = validHeaderWarningDays(localStorage.getItem("cg-header-warning-days")) ?? 3; }
+                    catch (error) { console.debug("[CG] 背景の警告日数を読み込めませんでした", error); }
+                    const now = Date.now();
+                    updateDeadlineBackground(background, cachedHomeDeadline(now) - now, warningDays);
+                }
+                // Portal menu blur makes fixed descendants relative to the tall wrapper. Keep the layer outside it.
+                document.body.appendChild(background);
             }
             return true;
         };
@@ -659,7 +730,6 @@
             const panel = document.querySelector(".index-notice-other-items");
             if (!panel) {
                 notice.hidden = true;
-                updateBackground(Infinity);
                 return;
             }
             // The portal can replace the notice markup after DOMContentLoaded.
@@ -670,14 +740,16 @@
             }
             if (notice.parentElement !== panel || panel.lastElementChild !== notice) panel.appendChild(notice);
             const list = document.querySelector(".submissionList");
-            if (!list) {
+            // The server sends an empty list with this spinner; AJAX replaces it with tasks or an empty-state message.
+            // Keep the initial deadline background and cache until that response has arrived.
+            if (!list || list.querySelector("#notSubmitReading")) {
                 notice.hidden = true;
-                updateBackground(Infinity);
                 return;
             }
             const texts = Array.from(list.querySelectorAll(".submissionList_item"))
                 .filter(item => item.classList.contains("is-yet") || item.querySelector(".c-status-yet"))
                 .map(item => item.querySelector(".deadline")?.textContent || "");
+            cacheHomeDeadlines(texts);
             const now = Date.now();
             const deadline = nearestHomeDeadline(texts, now);
             notice.hidden = false;
@@ -917,161 +989,27 @@
         }, true);
     }
 
-    function headerCropRectangle(img, selection = {}, aspectRatio = 16 / 9) {
+    function prepareHeaderImage(img) {
         const width = img.naturalWidth || img.width;
         const height = img.naturalHeight || img.height;
-        const clamp = (value, min, max, fallback) => Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
-        const zoom = clamp(selection.zoom, 1, 4, 1);
-        const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 16 / 9;
-        const cropW = Math.min(width, height * ratio) / zoom;
-        const cropH = cropW / ratio;
-        return {
-            x: (width - cropW) * clamp(selection.x, 0, 1, 0.5),
-            y: (height - cropH) * clamp(selection.y, 0, 1, 0.5),
-            width: cropW,
-            height: cropH
-        };
-    }
-
-    function cropHeaderImage(img, selection = {}, aspectRatio = 16 / 9) {
-        const crop = headerCropRectangle(img, selection, aspectRatio);
-        const scale = Math.min(1, 1500 / crop.width, 1200 / crop.height);
+        if (!(width > 0 && height > 0)) throw new Error("画像のサイズを取得できませんでした．");
+        const scale = Math.min(1, 2048 / width, 2048 / height);
         const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(crop.width * scale));
-        canvas.height = Math.max(1, Math.round(crop.height * scale));
-        canvas.getContext("2d").drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
-        return canvas;
-    }
-
-    function chooseHeaderCrop(img, save, aspectRatio = 16 / 9) {
-        return new Promise((resolve, reject) => {
-            const dialog = document.createElement("dialog");
-            dialog.id = "cg-header-crop-dialog";
-            dialog.setAttribute("aria-labelledby", "cg-header-crop-title");
-            const style = document.createElement("style");
-            style.textContent = `
-                #cg-header-crop-dialog { width: min(760px, calc(100vw - 32px)); max-height: 90vh; overflow: auto; box-sizing: border-box;
-                    padding: 20px; border: 1px solid #bbb; border-radius: 8px; color: #333; background: #fff; font: 14px/1.5 sans-serif; }
-                #cg-header-crop-dialog::backdrop { background: #0009; }
-                #cg-header-crop-dialog h2 { margin: 0 0 8px; font-size: 18px; }
-                #cg-header-crop-dialog p { margin: 8px 0; }
-                #cg-header-crop-dialog canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 40vh;
-                    margin: 12px auto; touch-action: none; cursor: move; }
-                #cg-header-crop-dialog label { display: grid; grid-template-columns: 85px 1fr 60px; align-items: center; gap: 8px; margin: 10px 0; }
-                #cg-header-crop-dialog input { width: 100%; min-width: 0; }
-                #cg-header-crop-dialog .cg-crop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-                #cg-header-crop-dialog button { padding: 8px 12px; border: 1px solid #aaa; border-radius: 4px; font: inherit; cursor: pointer; color: #333; background: #f6f6f6; }
-                #cg-header-crop-dialog .cg-crop-save { background: #176473; color: #fff; }
-                #cg-header-crop-error { color: #b00020; }
-            `;
-            const title = document.createElement("h2");
-            title.id = "cg-header-crop-title";
-            title.textContent = "画像の切り取り";
-            const note = document.createElement("p");
-            note.textContent = "白い枠の内側が背景になります．枠をドラッグするか，位置と拡大率を調整してください．";
-            const canvas = document.createElement("canvas");
-            canvas.setAttribute("aria-label", "背景画像の切り取り範囲．スライダーでも位置を調整できます．");
-            const width = img.naturalWidth || img.width;
-            const height = img.naturalHeight || img.height;
-            const scale = Math.min(1, 900 / width, 360 / height);
-            canvas.width = Math.max(1, Math.round(width * scale));
-            canvas.height = Math.max(1, Math.round(height * scale));
-            const ctx = canvas.getContext("2d");
-            const selection = { x: 0.5, y: 0.5, zoom: 1 };
-            const sliders = new Map();
-            const draw = () => {
-                const crop = headerCropRectangle(img, selection, aspectRatio);
-                const x = crop.x * canvas.width / width;
-                const y = crop.y * canvas.height / height;
-                const w = crop.width * canvas.width / width;
-                const h = crop.height * canvas.height / height;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(x, y, w, h);
-                ctx.clip();
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
-                ctx.strokeStyle = "white";
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x, y, w, h);
-                for (const [key, { input, output }] of sliders) {
-                    input.value = String(key === "zoom" ? selection[key] : selection[key] * 100);
-                    output.textContent = key === "zoom" ? `${selection[key].toFixed(2)}倍` : `${Math.round(selection[key] * 100)}%`;
-                    input.disabled = key === "x" ? width - crop.width < 0.001 : key === "y" ? height - crop.height < 0.001 : false;
-                }
-            };
-            dialog.append(style, title, note, canvas);
-            for (const [key, name] of [["x", "左右の位置"], ["y", "上下の位置"], ["zoom", "拡大率"]]) {
-                const label = document.createElement("label");
-                label.textContent = name;
-                const input = document.createElement("input");
-                input.id = `cg-header-crop-${key}`;
-                input.type = "range";
-                input.min = key === "zoom" ? "1" : "0";
-                input.max = key === "zoom" ? "4" : "100";
-                input.step = key === "zoom" ? "0.01" : "1";
-                const output = document.createElement("output");
-                input.addEventListener("input", () => {
-                    selection[key] = Number(input.value) / (key === "zoom" ? 1 : 100);
-                    draw();
-                });
-                sliders.set(key, { input, output });
-                label.append(input, output);
-                dialog.appendChild(label);
-            }
-            let drag;
-            canvas.addEventListener("pointerdown", event => {
-                const bounds = canvas.getBoundingClientRect();
-                const crop = headerCropRectangle(img, selection, aspectRatio);
-                const x = (event.clientX - bounds.left) * width / bounds.width;
-                const y = (event.clientY - bounds.top) * height / bounds.height;
-                if (x < crop.x || x > crop.x + crop.width || y < crop.y || y > crop.y + crop.height) return;
-                drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, crop };
-                canvas.setPointerCapture(event.pointerId);
-                event.preventDefault();
-            });
-            canvas.addEventListener("pointermove", event => {
-                if (!drag || event.pointerId !== drag.pointerId) return;
-                const bounds = canvas.getBoundingClientRect();
-                if (width > drag.crop.width) selection.x = Math.max(0, Math.min(1, (drag.crop.x + (event.clientX - drag.x) * width / bounds.width) / (width - drag.crop.width)));
-                if (height > drag.crop.height) selection.y = Math.max(0, Math.min(1, (drag.crop.y + (event.clientY - drag.y) * height / bounds.height) / (height - drag.crop.height)));
-                draw();
-            });
-            const endDrag = event => { if (event.pointerId === drag?.pointerId) drag = null; };
-            canvas.addEventListener("pointerup", endDrag);
-            canvas.addEventListener("pointercancel", endDrag);
-            const error = document.createElement("p");
-            error.id = "cg-header-crop-error";
-            error.setAttribute("role", "status");
-            const actions = document.createElement("div");
-            actions.className = "cg-crop-actions";
-            const cancel = document.createElement("button");
-            cancel.type = "button";
-            cancel.textContent = "キャンセル";
-            cancel.addEventListener("click", () => dialog.close("cancel"));
-            const confirm = document.createElement("button");
-            confirm.type = "button";
-            confirm.className = "cg-crop-save";
-            confirm.textContent = "この範囲で保存";
-            confirm.addEventListener("click", () => {
-                try {
-                    save(cropHeaderImage(img, selection, aspectRatio));
-                    dialog.close("saved");
-                } catch (e) { error.textContent = e.message; }
-            });
-            actions.append(cancel, confirm);
-            dialog.append(error, actions);
-            dialog.addEventListener("close", () => {
-                dialog.remove();
-                resolve(dialog.returnValue === "saved");
-            }, { once: true });
-            document.body.appendChild(dialog);
-            try { draw(); dialog.showModal(); }
-            catch (error) { dialog.remove(); reject(error); }
-        });
+        canvas.width = Math.max(1, Math.round(width * scale));
+        canvas.height = Math.max(1, Math.round(height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("画像を処理できませんでした．");
+        // Save the entire image. CSS fits it to the viewport without baking in a crop.
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        let image = canvas.toDataURL("image/png");
+        if (image.length > 3 * 1024 * 1024) {
+            ctx.globalCompositeOperation = "destination-over";
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            image = canvas.toDataURL("image/jpeg", 0.9);
+        }
+        if (image.length > 3 * 1024 * 1024) throw new Error("保存する画像は3MB以下にしてください．");
+        return image;
     }
 
     function installHeaderBackgroundSettings() {
@@ -1162,7 +1100,7 @@
         panel.appendChild(daysLabel);
         const note = document.createElement("p");
         note.className = "cg-header-note";
-        note.textContent = "画像はメニューより下の背景になります．ホームでは締め切りに応じて切り替わり，他のページでは通常時の画像を使います．日数は2以上の整数です．";
+        note.textContent = "画像を選ぶとそのまま保存し，縦横比を保って画面全体に表示します．ホームでは締め切りに応じて切り替わり，他のページでは通常時の画像を使います．日数は2以上の整数です．";
         panel.appendChild(note);
 
         const labels = new Map();
@@ -1191,7 +1129,7 @@
             reset.setAttribute("aria-label", `${label}の背景を元に戻す`);
             const file = document.createElement("input");
             file.type = "file";
-            file.accept = ".png,.jpg,.jpeg,.gif";
+            file.accept = "image/*";
             file.hidden = true;
             choose.addEventListener("click", () => file.click());
             file.addEventListener("change", () => {
@@ -1206,28 +1144,15 @@
                 reader.onload = () => {
                     const image = new Image();
                     image.onerror = () => { showError("この画像は読み込めません．PNGやJPEGでお試しください．"); finish(); };
-                    image.onload = async () => {
+                    image.onload = () => {
                         try {
-                            const bounds = visual.getBoundingClientRect();
-                            const ratio = bounds.width > 0 && bounds.height > 0 ? bounds.width / bounds.height : 16 / 9;
-                            await chooseHeaderCrop(image, canvas => {
-                                let base64 = canvas.toDataURL("image/png");
-                                if (base64.length > 3 * 1024 * 1024) {
-                                    // Flatten transparency onto white before the smaller JPEG fallback.
-                                    const ctx = canvas.getContext("2d");
-                                    ctx.globalCompositeOperation = "destination-over";
-                                    ctx.fillStyle = "white";
-                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                    base64 = canvas.toDataURL("image/jpeg", 0.9);
-                                }
-                                if (base64.length > 3 * 1024 * 1024) throw new Error("保存する画像は3MB以下にしてください．");
-                                try { background.setImage(state, base64); }
-                                catch (error) { throw new Error("画像を保存できませんでした．画像を小さくするか，不要な背景を元に戻してください．"); }
-                                refresh();
-                            }, ratio);
+                            const data = prepareHeaderImage(image);
+                            try { background.setImage(state, data); }
+                            catch (error) { throw new Error("画像を保存できませんでした．画像を小さくするか，不要な背景を元に戻してください．"); }
+                            refresh();
                         } catch (error) {
-                            showError("画像の切り取り画面を開けませんでした．");
-                            console.warn("[CG] 背景画像の切り取り失敗", error);
+                            showError(error.message || "画像を変更できませんでした．");
+                            console.warn("[CG] 背景画像の変更失敗", error);
                         } finally { finish(); }
                     };
                     image.src = reader.result;
@@ -1270,11 +1195,9 @@
         window.addEventListener("resize", () => { if (!panel.hidden) positionPanel(); });
         window.visualViewport?.addEventListener("resize", () => { if (!panel.hidden) positionPanel(); });
         document.addEventListener("click", event => {
-            if (event.target.closest?.("#cg-header-crop-dialog")) return;
             if (!wrapper.contains(event.target) && !panel.contains(event.target)) setOpen(false);
         });
         document.addEventListener("keydown", event => {
-            if (document.getElementById("cg-header-crop-dialog")?.open) return;
             if (event.key === "Escape" && !panel.hidden) { setOpen(false); toggle.focus(); }
         });
         return background;
@@ -1808,12 +1731,12 @@
 
                     const statusCell = row.querySelector('td[data-label*="提出状況"]');
                     if (statusCell && statusCell.textContent.includes("提出済")) {
-                        row.style.backgroundColor = "#e5ffe5";
+                        row.style.backgroundColor = "rgba(229, 255, 229, .62)";
                         row.addEventListener('mouseover', () => {
-                            row.style.backgroundColor = "#d1ffd1";
+                            row.style.backgroundColor = "rgba(209, 255, 209, .78)";
                         });
                         row.addEventListener('mouseout', () => {
-                            row.style.backgroundColor = "#e5ffe5";
+                            row.style.backgroundColor = "rgba(229, 255, 229, .62)";
                         });
                     }
 
@@ -2332,6 +2255,19 @@
                 }
                 .c-container {
                     padding-left: 88px;
+                }
+                @media screen and (min-width: 561px) {
+                    .cg-page-appearance .c-main-menu .c-main-menu-btn {
+                        width: 88px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .cg-page-appearance .c-main-menu .c-main-menu-btn img {
+                        position: static;
+                        margin: 0;
+                        transform: none;
+                    }
                 }
                 @media print, screen and (max-width: 560px) {
                     #cg-sidebar {
